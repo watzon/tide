@@ -28,7 +28,7 @@
   - ✅ Input event system
   - ✅ Unicode support
   - ✅ Combining characters support
-  - [ ] Screen buffer management
+  - ✅ Screen buffer management
   - ✅ Terminal capability detection
   - ✅ Clipboard integration
   - [ ] Alternative screen buffer
