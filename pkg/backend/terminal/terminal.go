@@ -46,9 +46,10 @@ type Event interface {
 
 // Terminal represents a terminal backend
 type Terminal struct {
-	screen         tcell.Screen
-	style          tcell.Style
-	colorOptimizer *ColorOptimizer
+	screen            tcell.Screen
+	style             tcell.Style
+	colorOptimizer    *ColorOptimizer
+	clipboardProvider ClipboardProvider
 
 	// State
 	size      core.Size
@@ -56,7 +57,6 @@ type Terminal struct {
 	mouseMode MouseMode
 	focused   bool
 	suspended bool
-	clipboard string
 	lock      sync.RWMutex
 	eventChan chan Event
 	stopChan  chan struct{}
@@ -459,18 +459,42 @@ func (t *Terminal) handleKey(ev *tcell.EventKey) {
 
 // Clipboard operations
 
-func (t *Terminal) SetClipboard(content string) {
+// SetClipboard sets the clipboard content
+func (t *Terminal) SetClipboard(content string) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	t.clipboard = content
+	// Try system clipboard first
+	if t.clipboardProvider == nil {
+		t.clipboardProvider = &SystemClipboard{}
+	}
+
+	if err := t.clipboardProvider.Set(content); err != nil {
+		// Fall back to in-memory clipboard
+		fallback := &FallbackClipboard{}
+		t.clipboardProvider = fallback
+		return fallback.Set(content)
+	}
+	return nil
 }
 
-func (t *Terminal) GetClipboard() string {
+// GetClipboard retrieves the clipboard content
+func (t *Terminal) GetClipboard() (string, error) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	return t.clipboard
+	if t.clipboardProvider == nil {
+		t.clipboardProvider = &SystemClipboard{}
+	}
+
+	content, err := t.clipboardProvider.Get()
+	if err != nil {
+		// Fall back to in-memory clipboard
+		fallback := &FallbackClipboard{}
+		t.clipboardProvider = fallback
+		return fallback.Get()
+	}
+	return content, nil
 }
 
 // Callbacks

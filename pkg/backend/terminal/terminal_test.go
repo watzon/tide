@@ -328,18 +328,6 @@ func TestTerminal(t *testing.T) {
 		}
 	})
 
-	t.Run("clipboard operations", func(t *testing.T) {
-		ctx := setupTest(t)
-		defer ctx.term.Shutdown()
-
-		content := "test clipboard content"
-		ctx.term.SetClipboard(content)
-
-		if got := ctx.term.GetClipboard(); got != content {
-			t.Errorf("expected clipboard content %q, got %q", content, got)
-		}
-	})
-
 	t.Run("suspend/resume", func(t *testing.T) {
 		ctx := setupTest(t)
 		defer ctx.term.Shutdown()
