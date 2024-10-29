@@ -53,7 +53,6 @@ type Terminal struct {
 
 	// State
 	size      core.Size
-	cursor    core.Point
 	mouseMode MouseMode
 	focused   bool
 	suspended bool
@@ -71,6 +70,10 @@ type Terminal struct {
 	unicodeMode    bool
 	combiningChars bool
 	title          string // Track the current window title
+
+	// Buffer management
+	frontBuffer *Buffer
+	backBuffer  *Buffer
 }
 
 // Config holds terminal configuration
@@ -119,14 +122,18 @@ func NewWithScreen(screen tcell.Screen, config *Config) (*Terminal, error) {
 	}
 
 	width, height := screen.Size()
+	size := core.Size{Width: width, Height: height}
+
 	t := &Terminal{
 		screen:         screen,
 		style:          tcell.StyleDefault,
-		size:           core.Size{Width: width, Height: height},
+		size:           size,
 		mouseMode:      config.MouseMode,
 		eventChan:      make(chan Event, 100),
 		stopChan:       make(chan struct{}),
 		combiningChars: true,
+		frontBuffer:    NewBuffer(size),
+		backBuffer:     NewBuffer(size),
 	}
 
 	if config.EnableMouse {
@@ -200,44 +207,33 @@ func (t *Terminal) DrawCell(x, y int, ch rune, fg, bg core.Color) {
 		Foreground(t.optimizeColor(fg)).
 		Background(t.optimizeColor(bg))
 
-	if !t.unicodeMode {
-		// Simple ASCII mode
-		t.screen.SetContent(x, y, ch, nil, style)
-		return
-	}
-
-	if !t.combiningChars {
-		// When combining chars are disabled, convert combining marks to their
-		// standalone forms if possible, or use a visible replacement
-		if unicode.IsMark(ch) {
-			// Use a visible character for combining marks when not combining
-			// Common choices are: '◌' (U+25CC) or '.' or '*'
-			t.screen.SetContent(x, y, '◌', []rune{ch}, style)
-		} else {
-			t.screen.SetContent(x, y, ch, nil, style)
-		}
-		return
-	}
-
-	// Handle combining characters when enabled
-	if unicode.IsMark(ch) {
-		mainc, combc, style, _ := t.screen.GetContent(x-1, y)
-		if mainc != ' ' {
-			newcombc := append(combc, ch)
-			t.screen.SetContent(x-1, y, mainc, newcombc, style)
+	if t.unicodeMode && t.combiningChars && unicode.IsMark(ch) {
+		// Handle combining characters when enabled
+		prevCell, exists := t.backBuffer.GetCell(x-1, y)
+		if exists && prevCell.Rune != ' ' {
+			// Append this combining character to the previous cell
+			combining := append(prevCell.Combining, ch)
+			t.backBuffer.SetCell(x-1, y, prevCell.Rune, combining, prevCell.Style)
 			return
 		}
 	}
 
-	// Handle regular characters
-	width := runewidth.RuneWidth(ch)
-	if width == 2 {
-		// Double-width character (CJK)
-		t.screen.SetContent(x, y, ch, nil, style)
-		t.screen.SetContent(x+1, y, ' ', nil, style)
+	// When combining is disabled or it's a regular character
+	if !t.combiningChars {
+		// Draw combining marks as standalone characters when combining is disabled
+		if unicode.IsMark(ch) {
+			// Use a visible character for combining marks when they're standalone
+			// Unicode provides special presentation forms for combining marks
+			// We'll use the dotted circle (U+25CC) as a base
+			t.backBuffer.SetCell(x, y, '\u25CC', []rune{ch}, style)
+			t.screen.SetContent(x, y, '\u25CC', []rune{ch}, style)
+		} else {
+			t.backBuffer.SetCell(x, y, ch, nil, style)
+			t.screen.SetContent(x, y, ch, nil, style)
+		}
 	} else {
-		// Normal-width character
-		t.screen.SetContent(x, y, ch, nil, style)
+		// Normal character handling
+		t.backBuffer.SetCell(x, y, ch, nil, style)
 	}
 }
 
@@ -302,10 +298,50 @@ func (t *Terminal) StringWidth(s string) int {
 }
 
 func (t *Terminal) Present() error {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	if !t.backBuffer.dirty {
+		return nil
+	}
+
+	t.backBuffer.lock.RLock()
+	t.frontBuffer.lock.RLock()
+	defer t.backBuffer.lock.RUnlock()
+	defer t.frontBuffer.lock.RUnlock()
+
+	for y := 0; y < t.size.Height; y++ {
+		for x := 0; x < t.size.Width; x++ {
+			pos := core.Point{X: x, Y: y}
+
+			backCell, backExists := t.backBuffer.cells[pos]
+			frontCell, frontExists := t.frontBuffer.cells[pos]
+
+			if backExists && frontExists &&
+				backCell.Rune == frontCell.Rune &&
+				backCell.Style == frontCell.Style &&
+				equalRunes(backCell.Combining, frontCell.Combining) {
+				continue
+			}
+
+			if backExists {
+				if !t.combiningChars && unicode.IsMark(backCell.Rune) {
+					// For disabled combining chars, show with dotted circle
+					t.screen.SetContent(x, y, '\u25CC', []rune{backCell.Rune}, backCell.Style)
+				} else {
+					t.screen.SetContent(x, y, backCell.Rune, backCell.Combining, backCell.Style)
+				}
+			} else {
+				t.screen.SetContent(x, y, ' ', nil, tcell.StyleDefault)
+			}
+		}
+	}
+
+	cursor := t.backBuffer.GetCursor()
+	t.screen.ShowCursor(cursor.X, cursor.Y)
 
 	t.screen.Show()
+	t.backBuffer.dirty = false
 	return nil
 }
 
@@ -323,8 +359,14 @@ func (t *Terminal) SetCursor(x, y int) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	t.cursor = core.Point{X: x, Y: y}
-	t.screen.ShowCursor(x, y)
+	t.backBuffer.SetCursor(x, y)
+}
+
+func (t *Terminal) GetCursor() core.Point {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	return t.backBuffer.GetCursor()
 }
 
 func (t *Terminal) HideCursor() {
@@ -568,4 +610,12 @@ func (t *Terminal) GetTitle() string {
 	defer t.lock.RUnlock()
 
 	return t.title
+}
+
+// SwapBuffers swaps the front and back buffers
+func (t *Terminal) SwapBuffers() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.frontBuffer, t.backBuffer = t.backBuffer, t.frontBuffer
 }

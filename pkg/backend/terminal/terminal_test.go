@@ -511,6 +511,7 @@ func TestCombiningCharacters(t *testing.T) {
 					usedCells++
 				}
 			}
+
 			if usedCells != tt.expectedCells {
 				t.Errorf("got %d cells used, want %d", usedCells, tt.expectedCells)
 			}

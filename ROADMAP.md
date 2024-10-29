@@ -30,7 +30,7 @@
   - ✅ Combining characters support
   - [ ] Screen buffer management
   - ✅ Terminal capability detection
-  - [ ] Clipboard integration
+  - ✅ Clipboard integration
   - [ ] Alternative screen buffer
   - ✅ Window title manipulation
 

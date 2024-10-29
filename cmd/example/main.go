@@ -32,15 +32,17 @@ func main() {
 
 	// Create channels for control
 	quit := make(chan struct{})
+	done := make(chan struct{}) // Add a done channel for cleanup synchronization
 
 	// Start event handling in a separate goroutine
 	go func() {
+		defer close(done) // Signal when the event handler is done
 		term.HandleEvents(func(ev terminal.Event) bool {
 			switch ev := ev.(type) {
 			case terminal.KeyEvent:
 				if ev.Key == tcell.KeyCtrlC || ev.Key == tcell.KeyEsc {
 					close(quit)
-					return true
+					return true // This stops HandleEvents, but we need to wait for it
 				}
 			case terminal.MouseEvent:
 				// Optional: Handle mouse events here
@@ -53,7 +55,7 @@ func main() {
 	size := term.Size()
 
 	// Calculate center position for our box
-	boxWidth := 40
+	boxWidth := 48
 	boxHeight := 10
 	startX := (size.Width - boxWidth) / 2
 	startY := (size.Height - boxHeight) / 2
@@ -69,10 +71,11 @@ func main() {
 	defer ticker.Stop()
 
 	// Draw loop
+drawLoop:
 	for {
 		select {
 		case <-quit:
-			return
+			break drawLoop
 		case <-ticker.C:
 			// Clear screen with background color
 			term.Clear()
@@ -132,4 +135,7 @@ func main() {
 			term.Present()
 		}
 	}
+
+	// Wait for the event handler to clean up
+	<-done
 }
