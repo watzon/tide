@@ -258,3 +258,8 @@ func (t *Terminal) initColorOptimizer() {
 		t.colorOptimizer = NewColorOptimizer(t.ColorMode())
 	}
 }
+
+func (t *Terminal) optimizeColor(c core.Color) tcell.Color {
+	t.initColorOptimizer()
+	return t.colorOptimizer.GetColor(c)
+}

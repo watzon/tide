@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/watzon/tide/pkg/core"
 )
 
 // ColorMode represents the level of color support
@@ -145,11 +144,4 @@ func (t *Terminal) SupportsTrueColor() bool {
 
 func (t *Terminal) SupportsUnicode() bool {
 	return t.Capabilities().Unicode
-}
-
-// Color optimization
-
-func (t *Terminal) optimizeColor(c core.Color) tcell.Color {
-	t.initColorOptimizer()
-	return t.colorOptimizer.GetColor(c)
 }
