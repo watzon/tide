@@ -200,41 +200,7 @@ func (t *Terminal) Clear() {
 }
 
 func (t *Terminal) DrawCell(x, y int, ch rune, fg, bg core.Color) {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	style := tcell.StyleDefault.
-		Foreground(t.optimizeColor(fg)).
-		Background(t.optimizeColor(bg))
-
-	if t.unicodeMode && t.combiningChars && unicode.IsMark(ch) {
-		// Handle combining characters when enabled
-		prevCell, exists := t.backBuffer.GetCell(x-1, y)
-		if exists && prevCell.Rune != ' ' {
-			// Append this combining character to the previous cell
-			combining := append(prevCell.Combining, ch)
-			t.backBuffer.SetCell(x-1, y, prevCell.Rune, combining, prevCell.Style)
-			return
-		}
-	}
-
-	// When combining is disabled or it's a regular character
-	if !t.combiningChars {
-		// Draw combining marks as standalone characters when combining is disabled
-		if unicode.IsMark(ch) {
-			// Use a visible character for combining marks when they're standalone
-			// Unicode provides special presentation forms for combining marks
-			// We'll use the dotted circle (U+25CC) as a base
-			t.backBuffer.SetCell(x, y, '\u25CC', []rune{ch}, style)
-			t.screen.SetContent(x, y, '\u25CC', []rune{ch}, style)
-		} else {
-			t.backBuffer.SetCell(x, y, ch, nil, style)
-			t.screen.SetContent(x, y, ch, nil, style)
-		}
-	} else {
-		// Normal character handling
-		t.backBuffer.SetCell(x, y, ch, nil, style)
-	}
+	t.DrawStyledCell(x, y, ch, fg, bg, 0)
 }
 
 func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg core.Color, style StyleMask) {
@@ -269,6 +235,30 @@ func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg core.Color, style St
 		tcellStyle = tcellStyle.StrikeThrough(true)
 	}
 
+	// When combining is disabled or it's a regular character
+	if !t.combiningChars {
+		// Draw combining marks as standalone characters when combining is disabled
+		if unicode.IsMark(ch) {
+			// Use a visible character for combining marks when they're standalone
+			t.backBuffer.SetCell(x, y, '\u25CC', []rune{ch}, tcellStyle)
+			t.screen.SetContent(x, y, '\u25CC', []rune{ch}, tcellStyle)
+			return
+		}
+	}
+
+	// Handle combining characters when enabled
+	if t.unicodeMode && t.combiningChars && unicode.IsMark(ch) {
+		prevCell, exists := t.backBuffer.GetCell(x-1, y)
+		if exists && prevCell.Rune != ' ' {
+			combining := append(prevCell.Combining, ch)
+			t.backBuffer.SetCell(x-1, y, prevCell.Rune, combining, tcellStyle)
+			t.screen.SetContent(x-1, y, prevCell.Rune, combining, tcellStyle)
+			return
+		}
+	}
+
+	// Normal character handling
+	t.backBuffer.SetCell(x, y, ch, nil, tcellStyle)
 	t.screen.SetContent(x, y, ch, nil, tcellStyle)
 }
 
@@ -618,4 +608,15 @@ func (t *Terminal) SwapBuffers() {
 	defer t.lock.Unlock()
 
 	t.frontBuffer, t.backBuffer = t.backBuffer, t.frontBuffer
+}
+
+// DrawText draws a string of text, handling combining characters appropriately
+func (t *Terminal) DrawText(x, y int, text string, fg, bg core.Color, style StyleMask) {
+	currentX := x
+	for _, ch := range text {
+		t.DrawStyledCell(currentX, y, ch, fg, bg, style)
+		if !t.combiningChars || !unicode.IsMark(ch) {
+			currentX++
+		}
+	}
 }

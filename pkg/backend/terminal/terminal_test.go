@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/watzon/tide/pkg/backend/terminal"
@@ -476,6 +477,20 @@ func TestCombiningCharacters(t *testing.T) {
 			expectedWidth: 3,
 			expectedCells: 3,
 		},
+		{
+			name:          "Combining enabled - heart with diaeresis",
+			input:         "♥\u0308", // Heart with diaeresis
+			combining:     true,
+			expectedWidth: 1,
+			expectedCells: 1,
+		},
+		{
+			name:          "Combining disabled - heart with diaeresis",
+			input:         "♥\u0308",
+			combining:     false,
+			expectedWidth: 2,
+			expectedCells: 2,
+		},
 	}
 
 	for _, tt := range tests {
@@ -493,11 +508,14 @@ func TestCombiningCharacters(t *testing.T) {
 			// Draw each character
 			x := 0
 			for _, ch := range tt.input {
-				ctx.term.DrawCell(x, 0, ch,
+				ctx.term.DrawStyledCell(x, 0, ch,
 					core.Color{R: 255, G: 255, B: 255, A: 255},
 					core.Color{R: 0, G: 0, B: 0, A: 255},
+					0,
 				)
-				x++
+				if !tt.combining || !unicode.IsMark(ch) {
+					x++
+				}
 			}
 
 			ctx.term.Present()
@@ -505,8 +523,11 @@ func TestCombiningCharacters(t *testing.T) {
 			// Verify the number of cells used
 			usedCells := 0
 			simScreen := ctx.screen.(tcell.SimulationScreen)
+			fmt.Printf("Test: %s\n", tt.name)
+			fmt.Printf("Input string: %q\n", tt.input)
 			for i := 0; i < tt.expectedWidth+1; i++ {
 				mainc, combc, _, _ := simScreen.GetContent(i, 0)
+				fmt.Printf("Position %d: main=%q combining=%q\n", i, mainc, combc)
 				if mainc != ' ' || len(combc) > 0 {
 					usedCells++
 				}
