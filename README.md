@@ -37,6 +37,8 @@ go install github.com/watzon/tide/cmd/tide@latest
 
 ### Quick Start
 
+> **Note**: The following examples show a future syntax that has not been implemented yet.
+
 ```go
 package main
 
