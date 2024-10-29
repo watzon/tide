@@ -33,6 +33,7 @@ func main() {
 	term.EnableCombiningChars()
 	term.EnableMouse()
 	term.SetMouseMode(terminal.MouseClick)
+	term.HideCursor()
 
 	// Set window title
 	term.SetTitle("Tide Terminal Demo")

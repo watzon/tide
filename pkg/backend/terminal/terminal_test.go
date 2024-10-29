@@ -523,11 +523,8 @@ func TestCombiningCharacters(t *testing.T) {
 			// Verify the number of cells used
 			usedCells := 0
 			simScreen := ctx.screen.(tcell.SimulationScreen)
-			fmt.Printf("Test: %s\n", tt.name)
-			fmt.Printf("Input string: %q\n", tt.input)
 			for i := 0; i < tt.expectedWidth+1; i++ {
 				mainc, combc, _, _ := simScreen.GetContent(i, 0)
-				fmt.Printf("Position %d: main=%q combining=%q\n", i, mainc, combc)
 				if mainc != ' ' || len(combc) > 0 {
 					usedCells++
 				}

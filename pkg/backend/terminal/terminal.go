@@ -72,8 +72,11 @@ type Terminal struct {
 	title          string // Track the current window title
 
 	// Buffer management
-	frontBuffer *Buffer
-	backBuffer  *Buffer
+	mainFrontBuffer *Buffer
+	mainBackBuffer  *Buffer
+	altFrontBuffer  *Buffer
+	altBackBuffer   *Buffer
+	usingAltScreen  bool
 }
 
 // Config holds terminal configuration
@@ -125,15 +128,17 @@ func NewWithScreen(screen tcell.Screen, config *Config) (*Terminal, error) {
 	size := core.Size{Width: width, Height: height}
 
 	t := &Terminal{
-		screen:         screen,
-		style:          tcell.StyleDefault,
-		size:           size,
-		mouseMode:      config.MouseMode,
-		eventChan:      make(chan Event, 100),
-		stopChan:       make(chan struct{}),
-		combiningChars: true,
-		frontBuffer:    NewBuffer(size),
-		backBuffer:     NewBuffer(size),
+		screen:          screen,
+		style:           tcell.StyleDefault,
+		size:            size,
+		mouseMode:       config.MouseMode,
+		eventChan:       make(chan Event, 100),
+		stopChan:        make(chan struct{}),
+		combiningChars:  true,
+		mainFrontBuffer: NewBuffer(size),
+		mainBackBuffer:  NewBuffer(size),
+		altFrontBuffer:  NewBuffer(size),
+		altBackBuffer:   NewBuffer(size),
 	}
 
 	if config.EnableMouse {
@@ -207,7 +212,12 @@ func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg core.Color, style St
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	// Start with optimized colors
+	// Get the current back buffer based on screen mode
+	backBuffer := t.mainBackBuffer
+	if t.usingAltScreen {
+		backBuffer = t.altBackBuffer
+	}
+
 	tcellStyle := tcell.StyleDefault.
 		Foreground(t.optimizeColor(fg)).
 		Background(t.optimizeColor(bg))
@@ -240,26 +250,23 @@ func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg core.Color, style St
 		// Draw combining marks as standalone characters when combining is disabled
 		if unicode.IsMark(ch) {
 			// Use a visible character for combining marks when they're standalone
-			t.backBuffer.SetCell(x, y, '\u25CC', []rune{ch}, tcellStyle)
-			t.screen.SetContent(x, y, '\u25CC', []rune{ch}, tcellStyle)
+			backBuffer.SetCell(x, y, '\u25CC', []rune{ch}, tcellStyle)
 			return
 		}
 	}
 
 	// Handle combining characters when enabled
 	if t.unicodeMode && t.combiningChars && unicode.IsMark(ch) {
-		prevCell, exists := t.backBuffer.GetCell(x-1, y)
+		prevCell, exists := backBuffer.GetCell(x-1, y)
 		if exists && prevCell.Rune != ' ' {
 			combining := append(prevCell.Combining, ch)
-			t.backBuffer.SetCell(x-1, y, prevCell.Rune, combining, tcellStyle)
-			t.screen.SetContent(x-1, y, prevCell.Rune, combining, tcellStyle)
+			backBuffer.SetCell(x-1, y, prevCell.Rune, combining, tcellStyle)
 			return
 		}
 	}
 
 	// Normal character handling
-	t.backBuffer.SetCell(x, y, ch, nil, tcellStyle)
-	t.screen.SetContent(x, y, ch, nil, tcellStyle)
+	backBuffer.SetCell(x, y, ch, nil, tcellStyle)
 }
 
 func (t *Terminal) DrawRegion(region core.Rect, style tcell.Style, ch rune) {
@@ -269,6 +276,17 @@ func (t *Terminal) DrawRegion(region core.Rect, style tcell.Style, ch rune) {
 	for y := region.Min.Y; y < region.Max.Y; y++ {
 		for x := region.Min.X; x < region.Max.X; x++ {
 			t.screen.SetContent(x, y, ch, nil, style)
+		}
+	}
+}
+
+// DrawText draws a string of text, handling combining characters appropriately
+func (t *Terminal) DrawText(x, y int, text string, fg, bg core.Color, style StyleMask) {
+	currentX := x
+	for _, ch := range text {
+		t.DrawStyledCell(currentX, y, ch, fg, bg, style)
+		if !t.combiningChars || !unicode.IsMark(ch) {
+			currentX++
 		}
 	}
 }
@@ -291,21 +309,30 @@ func (t *Terminal) Present() error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	if !t.backBuffer.dirty {
+	var front, back *Buffer
+	if t.usingAltScreen {
+		front = t.altFrontBuffer
+		back = t.altBackBuffer
+	} else {
+		front = t.mainFrontBuffer
+		back = t.mainBackBuffer
+	}
+
+	if !back.dirty {
 		return nil
 	}
 
-	t.backBuffer.lock.RLock()
-	t.frontBuffer.lock.RLock()
-	defer t.backBuffer.lock.RUnlock()
-	defer t.frontBuffer.lock.RUnlock()
+	back.lock.RLock()
+	front.lock.RLock()
+	defer back.lock.RUnlock()
+	defer front.lock.RUnlock()
 
 	for y := 0; y < t.size.Height; y++ {
 		for x := 0; x < t.size.Width; x++ {
 			pos := core.Point{X: x, Y: y}
 
-			backCell, backExists := t.backBuffer.cells[pos]
-			frontCell, frontExists := t.frontBuffer.cells[pos]
+			backCell, backExists := back.cells[pos]
+			frontCell, frontExists := front.cells[pos]
 
 			if backExists && frontExists &&
 				backCell.Rune == frontCell.Rune &&
@@ -316,7 +343,6 @@ func (t *Terminal) Present() error {
 
 			if backExists {
 				if !t.combiningChars && unicode.IsMark(backCell.Rune) {
-					// For disabled combining chars, show with dotted circle
 					t.screen.SetContent(x, y, '\u25CC', []rune{backCell.Rune}, backCell.Style)
 				} else {
 					t.screen.SetContent(x, y, backCell.Rune, backCell.Combining, backCell.Style)
@@ -327,11 +353,11 @@ func (t *Terminal) Present() error {
 		}
 	}
 
-	cursor := t.backBuffer.GetCursor()
+	cursor := back.GetCursor()
 	t.screen.ShowCursor(cursor.X, cursor.Y)
 
 	t.screen.Show()
-	t.backBuffer.dirty = false
+	back.dirty = false
 	return nil
 }
 
@@ -349,19 +375,26 @@ func (t *Terminal) SetCursor(x, y int) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	t.backBuffer.SetCursor(x, y)
+	t.mainBackBuffer.SetCursor(x, y)
 }
 
 func (t *Terminal) GetCursor() core.Point {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	return t.backBuffer.GetCursor()
+	return t.mainBackBuffer.GetCursor()
 }
 
 func (t *Terminal) HideCursor() {
 	t.lock.Lock()
 	defer t.lock.Unlock()
+
+	// Set cursor position to -1,-1 in the current buffer to indicate hidden state
+	if t.usingAltScreen {
+		t.altBackBuffer.SetCursor(-1, -1)
+	} else {
+		t.mainBackBuffer.SetCursor(-1, -1)
+	}
 
 	t.screen.HideCursor()
 }
@@ -607,16 +640,34 @@ func (t *Terminal) SwapBuffers() {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	t.frontBuffer, t.backBuffer = t.backBuffer, t.frontBuffer
+	if t.usingAltScreen {
+		t.altFrontBuffer, t.altBackBuffer = t.altBackBuffer, t.altFrontBuffer
+	} else {
+		t.mainFrontBuffer, t.mainBackBuffer = t.mainBackBuffer, t.mainFrontBuffer
+	}
 }
 
-// DrawText draws a string of text, handling combining characters appropriately
-func (t *Terminal) DrawText(x, y int, text string, fg, bg core.Color, style StyleMask) {
-	currentX := x
-	for _, ch := range text {
-		t.DrawStyledCell(currentX, y, ch, fg, bg, style)
-		if !t.combiningChars || !unicode.IsMark(ch) {
-			currentX++
-		}
+func (t *Terminal) EnterAltScreen() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	if !t.usingAltScreen {
+		t.usingAltScreen = true
+		// Clear the alternate screen buffers
+		t.altFrontBuffer.Clear()
+		t.altBackBuffer.Clear()
+		t.Present() // Show the cleared alternate screen
 	}
+	return nil
+}
+
+func (t *Terminal) ExitAltScreen() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	if t.usingAltScreen {
+		t.usingAltScreen = false
+		t.Present() // Return to main screen content
+	}
+	return nil
 }

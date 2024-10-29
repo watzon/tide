@@ -31,7 +31,7 @@
   - ✅ Screen buffer management
   - ✅ Terminal capability detection
   - ✅ Clipboard integration
-  - [ ] Alternative screen buffer
+  - ✅ Alternative screen buffer
   - ✅ Window title manipulation
 
 - Widget System Core
