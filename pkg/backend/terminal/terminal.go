@@ -1,0 +1,547 @@
+// Copyright (c) 2024 Christopher Watson
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
+package terminal
+
+import (
+	"fmt"
+	"sync"
+	"time"
+	"unicode"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
+	"github.com/watzon/tide/pkg/core"
+)
+
+// StyleMask represents different text style attributes
+type StyleMask uint16
+
+const (
+	StyleBold StyleMask = 1 << iota
+	StyleBlink
+	StyleReverse
+	StyleUnderline
+	StyleDim
+	StyleItalic
+	StyleStrikethrough
+)
+
+// MouseMode represents different mouse handling modes
+type MouseMode int
+
+const (
+	MouseDisabled MouseMode = iota
+	MouseClick
+	MouseDrag
+	MouseMotion
+)
+
+// Event represents a terminal event
+type Event interface {
+	When() time.Time
+}
+
+// Terminal represents a terminal backend
+type Terminal struct {
+	screen         tcell.Screen
+	style          tcell.Style
+	colorOptimizer *ColorOptimizer
+
+	// State
+	size      core.Size
+	cursor    core.Point
+	mouseMode MouseMode
+	focused   bool
+	suspended bool
+	clipboard string
+	lock      sync.RWMutex
+	eventChan chan Event
+	stopChan  chan struct{}
+
+	// Callbacks
+	onResize      func(core.Size)
+	onFocusChange func(bool)
+	onSuspend     func()
+	onResume      func()
+
+	// Unicode
+	unicodeMode    bool
+	combiningChars bool
+	title          string // Track the current window title
+}
+
+// Config holds terminal configuration
+type Config struct {
+	EnableMouse   bool
+	MouseMode     MouseMode
+	ColorMode     tcell.Color
+	PollInterval  time.Duration
+	HandleSuspend bool
+	HandleResize  bool
+	CaptureEvents bool
+}
+
+// DefaultConfig returns the default terminal configuration
+func DefaultConfig() *Config {
+	return &Config{
+		EnableMouse:   true,
+		MouseMode:     MouseClick,
+		ColorMode:     tcell.ColorDefault,
+		PollInterval:  time.Millisecond * 50,
+		HandleSuspend: true,
+		HandleResize:  true,
+		CaptureEvents: true,
+	}
+}
+
+// New creates a new terminal with default configuration
+func New() (*Terminal, error) {
+	return NewWithConfig(DefaultConfig())
+}
+
+// NewWithConfig creates a new terminal with the provided configuration
+func NewWithConfig(config *Config) (*Terminal, error) {
+	screen, err := tcell.NewScreen()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create screen: %w", err)
+	}
+
+	return NewWithScreen(screen, config)
+}
+
+// NewWithScreen creates a new terminal with a provided screen
+func NewWithScreen(screen tcell.Screen, config *Config) (*Terminal, error) {
+	if err := screen.Init(); err != nil {
+		return nil, fmt.Errorf("failed to initialize screen: %w", err)
+	}
+
+	width, height := screen.Size()
+	t := &Terminal{
+		screen:         screen,
+		style:          tcell.StyleDefault,
+		size:           core.Size{Width: width, Height: height},
+		mouseMode:      config.MouseMode,
+		eventChan:      make(chan Event, 100),
+		stopChan:       make(chan struct{}),
+		combiningChars: true,
+	}
+
+	if config.EnableMouse {
+		t.EnableMouse()
+	}
+
+	if config.CaptureEvents {
+		go t.eventLoop(config.PollInterval)
+	}
+
+	if t.SupportsUnicode() {
+		t.EnableUnicode()
+	}
+
+	return t, nil
+}
+
+// Screen management
+
+func (t *Terminal) Init() error {
+	return nil
+}
+
+func (t *Terminal) Shutdown() error {
+	close(t.stopChan)
+	t.screen.Fini()
+	return nil
+}
+
+func (t *Terminal) Suspend() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.suspended = true
+	t.screen.Fini()
+	if t.onSuspend != nil {
+		t.onSuspend()
+	}
+	return nil
+}
+
+func (t *Terminal) Resume() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	if err := t.screen.Init(); err != nil {
+		return err
+	}
+	t.suspended = false
+	if t.onResume != nil {
+		t.onResume()
+	}
+	return nil
+}
+
+func (t *Terminal) Sync() {
+	t.screen.Sync()
+}
+
+// Drawing operations
+
+func (t *Terminal) Clear() {
+	t.screen.Clear()
+}
+
+func (t *Terminal) DrawCell(x, y int, ch rune, fg, bg core.Color) {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	style := tcell.StyleDefault.
+		Foreground(t.optimizeColor(fg)).
+		Background(t.optimizeColor(bg))
+
+	if !t.unicodeMode {
+		// Simple ASCII mode
+		t.screen.SetContent(x, y, ch, nil, style)
+		return
+	}
+
+	if !t.combiningChars {
+		// When combining chars are disabled, convert combining marks to their
+		// standalone forms if possible, or use a visible replacement
+		if unicode.IsMark(ch) {
+			// Use a visible character for combining marks when not combining
+			// Common choices are: '◌' (U+25CC) or '.' or '*'
+			t.screen.SetContent(x, y, '◌', []rune{ch}, style)
+		} else {
+			t.screen.SetContent(x, y, ch, nil, style)
+		}
+		return
+	}
+
+	// Handle combining characters when enabled
+	if unicode.IsMark(ch) {
+		mainc, combc, style, _ := t.screen.GetContent(x-1, y)
+		if mainc != ' ' {
+			newcombc := append(combc, ch)
+			t.screen.SetContent(x-1, y, mainc, newcombc, style)
+			return
+		}
+	}
+
+	// Handle regular characters
+	width := runewidth.RuneWidth(ch)
+	if width == 2 {
+		// Double-width character (CJK)
+		t.screen.SetContent(x, y, ch, nil, style)
+		t.screen.SetContent(x+1, y, ' ', nil, style)
+	} else {
+		// Normal-width character
+		t.screen.SetContent(x, y, ch, nil, style)
+	}
+}
+
+func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg core.Color, style StyleMask) {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	// Start with optimized colors
+	tcellStyle := tcell.StyleDefault.
+		Foreground(t.optimizeColor(fg)).
+		Background(t.optimizeColor(bg))
+
+	// Apply style attributes
+	if style&StyleBold != 0 {
+		tcellStyle = tcellStyle.Bold(true)
+	}
+	if style&StyleBlink != 0 {
+		tcellStyle = tcellStyle.Blink(true)
+	}
+	if style&StyleReverse != 0 {
+		tcellStyle = tcellStyle.Reverse(true)
+	}
+	if style&StyleUnderline != 0 {
+		tcellStyle = tcellStyle.Underline(true)
+	}
+	if style&StyleDim != 0 {
+		tcellStyle = tcellStyle.Dim(true)
+	}
+	if style&StyleItalic != 0 {
+		tcellStyle = tcellStyle.Italic(true)
+	}
+	if style&StyleStrikethrough != 0 {
+		tcellStyle = tcellStyle.StrikeThrough(true)
+	}
+
+	t.screen.SetContent(x, y, ch, nil, tcellStyle)
+}
+
+func (t *Terminal) DrawRegion(region core.Rect, style tcell.Style, ch rune) {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	for y := region.Min.Y; y < region.Max.Y; y++ {
+		for x := region.Min.X; x < region.Max.X; x++ {
+			t.screen.SetContent(x, y, ch, nil, style)
+		}
+	}
+}
+
+func (t *Terminal) StringWidth(s string) int {
+	if !t.unicodeMode {
+		return len(s)
+	}
+
+	if !t.combiningChars {
+		// When combining chars are disabled, count each rune separately
+		return len([]rune(s))
+	}
+
+	// Use runewidth for normal Unicode width calculation
+	return runewidth.StringWidth(s)
+}
+
+func (t *Terminal) Present() error {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	t.screen.Show()
+	return nil
+}
+
+// Size and cursor management
+
+func (t *Terminal) Size() core.Size {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	width, height := t.screen.Size()
+	return core.Size{Width: width, Height: height}
+}
+
+func (t *Terminal) SetCursor(x, y int) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.cursor = core.Point{X: x, Y: y}
+	t.screen.ShowCursor(x, y)
+}
+
+func (t *Terminal) HideCursor() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.screen.HideCursor()
+}
+
+// Mouse handling
+
+func (t *Terminal) EnableMouse() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.screen.EnableMouse()
+}
+
+func (t *Terminal) DisableMouse() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.screen.DisableMouse()
+}
+
+func (t *Terminal) SetMouseMode(mode MouseMode) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.mouseMode = mode
+	switch mode {
+	case MouseDisabled:
+		t.screen.DisableMouse()
+	case MouseClick:
+		t.screen.EnableMouse(tcell.MouseButtonEvents)
+	case MouseDrag:
+		t.screen.EnableMouse(tcell.MouseButtonEvents, tcell.MouseDragEvents)
+	case MouseMotion:
+		t.screen.EnableMouse(tcell.MouseButtonEvents, tcell.MouseDragEvents, tcell.MouseMotionEvents)
+	}
+}
+
+// Event handling
+
+func (t *Terminal) eventLoop(pollInterval time.Duration) {
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-t.stopChan:
+			return
+		case <-ticker.C:
+			ev := t.screen.PollEvent()
+			if ev == nil {
+				continue
+			}
+
+			go func(ev tcell.Event) {
+				t.lock.Lock()
+				defer t.lock.Unlock()
+
+				switch ev := ev.(type) {
+				case *tcell.EventResize:
+					width, height := ev.Size()
+					t.size = core.Size{Width: width, Height: height}
+					t.screen.Sync()
+					if t.onResize != nil {
+						t.onResize(t.size)
+					}
+				case *tcell.EventMouse:
+					t.handleMouse(ev)
+				case *tcell.EventKey:
+					t.handleKey(ev)
+				case *tcell.EventFocus:
+					t.focused = ev.Focused
+					if t.onFocusChange != nil {
+						t.onFocusChange(t.focused)
+					}
+				}
+			}(ev)
+		}
+	}
+}
+
+func (t *Terminal) handleMouse(ev *tcell.EventMouse) {
+	// Skip if mouse events are disabled
+	if t.mouseMode == MouseDisabled {
+		return
+	}
+
+	x, y := ev.Position()
+	buttons := ev.Buttons()
+
+	// Create mouse event
+	event := MouseEvent{
+		Buttons:   buttons,
+		Position:  core.Point{X: x, Y: y},
+		timestamp: ev.When(),
+	}
+
+	// Handle based on mouse mode
+	switch t.mouseMode {
+	case MouseClick:
+		// Only send button press events (Primary, Secondary, Middle)
+		if buttons&(tcell.ButtonPrimary|tcell.ButtonSecondary|tcell.ButtonMiddle) != 0 {
+			t.eventChan <- event
+		}
+	case MouseDrag:
+		// Send button events and drag events
+		if buttons != tcell.ButtonNone {
+			t.eventChan <- event
+		}
+	case MouseMotion:
+		// Send all mouse events
+		t.eventChan <- event
+	}
+}
+
+func (t *Terminal) handleKey(ev *tcell.EventKey) {
+	// Create key event
+	event := KeyEvent{
+		Key:       ev.Key(),
+		Rune:      ev.Rune(),
+		Modifiers: ev.Modifiers(),
+		timestamp: ev.When(),
+	}
+
+	// Send the event through the channel
+	t.eventChan <- event
+}
+
+// Clipboard operations
+
+func (t *Terminal) SetClipboard(content string) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.clipboard = content
+}
+
+func (t *Terminal) GetClipboard() string {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	return t.clipboard
+}
+
+// Callbacks
+
+func (t *Terminal) OnResize(callback func(core.Size)) {
+	t.onResize = callback
+}
+
+func (t *Terminal) OnFocusChange(callback func(bool)) {
+	t.onFocusChange = callback
+}
+
+func (t *Terminal) OnSuspend(callback func()) {
+	t.onSuspend = callback
+}
+
+func (t *Terminal) OnResume(callback func()) {
+	t.onResume = callback
+}
+
+// Add this new method
+func (t *Terminal) HandleEvents(handler func(Event) bool) {
+	for {
+		select {
+		case <-t.stopChan:
+			return
+		case event := <-t.eventChan:
+			if handler(event) {
+				return
+			}
+		}
+	}
+}
+
+func (t *Terminal) EnableUnicode() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.unicodeMode = true
+}
+
+func (t *Terminal) DisableUnicode() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.unicodeMode = false
+}
+
+func (t *Terminal) EnableCombiningChars() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.combiningChars = true
+}
+
+func (t *Terminal) DisableCombiningChars() {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.combiningChars = false
+}
+
+// SetTitle sets the terminal window title
+func (t *Terminal) SetTitle(title string) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.title = title
+	// t.screen.SetTitle(title) // FIXME: Seems broken on this version of tcell
+}
+
+// GetTitle returns the current terminal window title
+func (t *Terminal) GetTitle() string {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	return t.title
+}
