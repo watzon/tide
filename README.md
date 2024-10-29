@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/watzon/tide/actions"><img src="https://github.com/watzon/tide/workflows/testing/badge.svg" alt="CI Status"></a>
+  <a href="https://github.com/watzon/tide/actions"><img src="https://github.com/watzon/tide/actions/workflows/testing.yaml/badge.svg" alt="CI Status"></a>
   <a href="https://pkg.go.dev/github.com/watzon/tide"><img src="https://pkg.go.dev/badge/github.com/watzon/tide.svg" alt="Go Reference"></a>
   <a href="https://goreportcard.com/report/github.com/watzon/tide"><img src="https://goreportcard.com/badge/github.com/watzon/tide" alt="Go Report Card"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
