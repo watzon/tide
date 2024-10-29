@@ -6,6 +6,7 @@
 package terminal_test
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -393,52 +394,52 @@ func TestUnicodeSupport(t *testing.T) {
 	}
 }
 
-// func TestTerminalConcurrency(t *testing.T) {
-// 	ctx := setupTest(t)
-// 	defer ctx.term.Shutdown()
+func TestTerminalConcurrency(t *testing.T) {
+	ctx := setupTest(t)
+	defer ctx.term.Shutdown()
 
-// 	const goroutines = 10
-// 	const operations = 100
+	const goroutines = 10
+	const operations = 100
 
-// 	var wg sync.WaitGroup
-// 	wg.Add(goroutines)
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
 
-// 	errc := make(chan error, goroutines*operations)
+	errc := make(chan error, goroutines*operations)
 
-// 	for i := 0; i < goroutines; i++ {
-// 		go func() {
-// 			defer wg.Done()
-// 			for j := 0; j < operations; j++ {
-// 				if err := func() error {
-// 					defer func() {
-// 						if r := recover(); r != nil {
-// 							errc <- fmt.Errorf("panic: %v", r)
-// 						}
-// 					}()
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < operations; j++ {
+				if err := func() error {
+					defer func() {
+						if r := recover(); r != nil {
+							errc <- fmt.Errorf("panic: %v", r)
+						}
+					}()
 
-// 					ctx.term.DrawCell(0, 0, 'X',
-// 						core.Color{R: 255, G: 255, B: 255, A: 255},
-// 						core.Color{R: 0, G: 0, B: 0, A: 255},
-// 					)
-// 					ctx.term.Present()
-// 					_ = ctx.term.Size()
-// 					ctx.term.SetCursor(0, 0)
-// 					ctx.term.HideCursor()
-// 					return nil
-// 				}(); err != nil {
-// 					errc <- err
-// 				}
-// 			}
-// 		}()
-// 	}
+					ctx.term.DrawCell(0, 0, 'X',
+						core.Color{R: 255, G: 255, B: 255, A: 255},
+						core.Color{R: 0, G: 0, B: 0, A: 255},
+					)
+					ctx.term.Present()
+					_ = ctx.term.Size()
+					ctx.term.SetCursor(0, 0)
+					ctx.term.HideCursor()
+					return nil
+				}(); err != nil {
+					errc <- err
+				}
+			}
+		}()
+	}
 
-// 	wg.Wait()
-// 	close(errc)
+	wg.Wait()
+	close(errc)
 
-// 	for err := range errc {
-// 		t.Errorf("concurrent operation error: %v", err)
-// 	}
-// }
+	for err := range errc {
+		t.Errorf("concurrent operation error: %v", err)
+	}
+}
 
 func TestCombiningCharacters(t *testing.T) {
 	tests := []struct {
