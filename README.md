@@ -1,7 +1,7 @@
 # Tide
 
 <p align="center">
-  <img src="https://placehold.co/600x200" alt="Tide Logo" />
+  <img src="./docs/tide-logo.png" alt="Tide Logo" width="200" />
   <br>
   <em>A modern, declarative TUI framework for Go, inspired by Flutter</em>
 </p>
