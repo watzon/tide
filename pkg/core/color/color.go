@@ -7,6 +7,8 @@ package color
 
 import (
 	"math"
+
+	"github.com/watzon/tide/internal/utils"
 )
 
 var (
@@ -238,35 +240,48 @@ func (c Color) QuantizeTo(mode ColorMode) Color {
 }
 
 func (c Color) quantizeTo16() Color {
-	// Simple 16-color quantization
-	// This is a basic implementation - you might want to improve it
 	if c.A < 128 {
 		return Color{}
 	}
 
-	// Convert to basic colors
-	r := c.R > 127
-	g := c.G > 127
-	b := c.B > 127
+	// Convert to basic intensities using helper
+	r, g, b := c.toBasicIntensities()
+	return intensityToColor(r, g, b)
+}
 
-	switch {
-	case !r && !g && !b:
-		return Color{R: 0, G: 0, B: 0, A: 255}
-	case !r && !g && b:
-		return Color{R: 0, G: 0, B: 255, A: 255}
-	case !r && g && !b:
-		return Color{R: 0, G: 255, B: 0, A: 255}
-	case !r && g && b:
-		return Color{R: 0, G: 255, B: 255, A: 255}
-	case r && !g && !b:
-		return Color{R: 255, G: 0, B: 0, A: 255}
-	case r && !g && b:
-		return Color{R: 255, G: 0, B: 255, A: 255}
-	case r && g && !b:
-		return Color{R: 255, G: 255, B: 0, A: 255}
-	default:
-		return Color{R: 255, G: 255, B: 255, A: 255}
+// toBasicIntensities converts RGB values to boolean intensities
+func (c Color) toBasicIntensities() (r, g, b bool) {
+	return utils.IsColorIntensityHigh(c.R),
+		utils.IsColorIntensityHigh(c.G),
+		utils.IsColorIntensityHigh(c.B)
+}
+
+// colorLookupTable maps RGB intensity combinations to colors
+var colorLookupTable = map[uint8]Color{
+	0b000: Black,   // !r && !g && !b
+	0b001: Blue,    // !r && !g && b
+	0b010: Green,   // !r && g && !b
+	0b011: Cyan,    // !r && g && b
+	0b100: Red,     // r && !g && !b
+	0b101: Magenta, // r && !g && b
+	0b110: Yellow,  // r && g && !b
+	0b111: White,   // r && g && b
+}
+
+// intensityToColor maps basic RGB intensities to 16-color palette
+func intensityToColor(r, g, b bool) Color {
+	// Convert booleans to a bit pattern
+	key := uint8(0)
+	if r {
+		key |= 0b100
 	}
+	if g {
+		key |= 0b010
+	}
+	if b {
+		key |= 0b001
+	}
+	return colorLookupTable[key]
 }
 
 func (c Color) quantizeTo256() Color {

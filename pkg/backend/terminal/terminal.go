@@ -216,6 +216,32 @@ func (t *Terminal) DrawCell(x, y int, ch rune, fg, bg color.Color) {
 	t.DrawStyledCell(x, y, ch, fg, bg, 0)
 }
 
+// applyStyleMask applies the style mask to a tcell.Style
+func (t *Terminal) applyStyleMask(baseStyle tcell.Style, style StyleMask) tcell.Style {
+	if style&StyleBold != 0 {
+		baseStyle = baseStyle.Bold(true)
+	}
+	if style&StyleBlink != 0 {
+		baseStyle = baseStyle.Blink(true)
+	}
+	if style&StyleReverse != 0 {
+		baseStyle = baseStyle.Reverse(true)
+	}
+	if style&StyleUnderline != 0 {
+		baseStyle = baseStyle.Underline(true)
+	}
+	if style&StyleDim != 0 {
+		baseStyle = baseStyle.Dim(true)
+	}
+	if style&StyleItalic != 0 {
+		baseStyle = baseStyle.Italic(true)
+	}
+	if style&StyleStrikethrough != 0 {
+		baseStyle = baseStyle.StrikeThrough(true)
+	}
+	return baseStyle
+}
+
 func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg color.Color, style StyleMask) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -226,47 +252,23 @@ func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg color.Color, style S
 		backBuffer = t.altBackBuffer
 	}
 
+	// Create base style with colors
 	tcellStyle := tcell.StyleDefault.
 		Foreground(t.optimizeColor(fg)).
 		Background(t.optimizeColor(bg))
 
 	// Apply style attributes
-	if style&StyleBold != 0 {
-		tcellStyle = tcellStyle.Bold(true)
-	}
-	if style&StyleBlink != 0 {
-		tcellStyle = tcellStyle.Blink(true)
-	}
-	if style&StyleReverse != 0 {
-		tcellStyle = tcellStyle.Reverse(true)
-	}
-	if style&StyleUnderline != 0 {
-		tcellStyle = tcellStyle.Underline(true)
-	}
-	if style&StyleDim != 0 {
-		tcellStyle = tcellStyle.Dim(true)
-	}
-	if style&StyleItalic != 0 {
-		tcellStyle = tcellStyle.Italic(true)
-	}
-	if style&StyleStrikethrough != 0 {
-		tcellStyle = tcellStyle.StrikeThrough(true)
-	}
+	tcellStyle = t.applyStyleMask(tcellStyle, style)
 
-	// When combining is disabled or it's a regular character
-	if !t.combiningChars {
-		// Draw combining marks as standalone characters when combining is disabled
-		if unicode.IsMark(ch) {
-			// Use a visible character for combining marks when they're standalone
-			backBuffer.SetCell(x, y, '\u25CC', []rune{ch}, tcellStyle)
-			return
-		}
+	// Handle disabled combining characters
+	if !t.combiningChars && unicode.IsMark(ch) {
+		backBuffer.SetCell(x, y, '\u25CC', []rune{ch}, tcellStyle)
+		return
 	}
 
 	// Handle combining characters when enabled
 	if t.unicodeMode && t.combiningChars && unicode.IsMark(ch) {
-		prevCell, exists := backBuffer.GetCell(x-1, y)
-		if exists && prevCell.Rune != ' ' {
+		if prevCell, exists := backBuffer.GetCell(x-1, y); exists && prevCell.Rune != ' ' {
 			combining := append(prevCell.Combining, ch)
 			backBuffer.SetCell(x-1, y, prevCell.Rune, combining, tcellStyle)
 			return

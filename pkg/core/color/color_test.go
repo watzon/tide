@@ -6,7 +6,6 @@
 package color_test
 
 import (
-	"math"
 	"testing"
 
 	"github.com/watzon/tide/pkg/core/color"
@@ -90,68 +89,64 @@ func TestHSLToRGB(t *testing.T) {
 	}
 }
 
-func TestColorModifications(t *testing.T) {
-	t.Run("Lighten", func(t *testing.T) {
-		c := color.Color{R: 100, G: 100, B: 100, A: 255}
-		lighter := c.Lighten(0.2)
+func TestColorLighten(t *testing.T) {
+	c := color.Color{R: 100, G: 100, B: 100, A: 255}
+	lighter := c.Lighten(0.2)
 
-		// Lightened color should have higher RGB values
-		if lighter.R <= c.R || lighter.G <= c.G || lighter.B <= c.B {
-			t.Errorf("Lightened color should have higher RGB values, got R:%d G:%d B:%d",
-				lighter.R, lighter.G, lighter.B)
-		}
+	// Lightened color should have higher RGB values
+	if lighter.R <= c.R || lighter.G <= c.G || lighter.B <= c.B {
+		t.Errorf("Lightened color should have higher RGB values, got R:%d G:%d B:%d",
+			lighter.R, lighter.G, lighter.B)
+	}
 
-		// Alpha should remain unchanged
-		if lighter.A != c.A {
-			t.Errorf("Alpha should remain unchanged, got %d, want %d", lighter.A, c.A)
-		}
-	})
+	// Alpha should remain unchanged
+	if lighter.A != c.A {
+		t.Errorf("Alpha should remain unchanged, got %d, want %d", lighter.A, c.A)
+	}
+}
 
-	t.Run("Darken", func(t *testing.T) {
-		c := color.Color{R: 200, G: 200, B: 200, A: 255}
-		darker := c.Darken(0.2)
+func TestColorDarken(t *testing.T) {
+	c := color.Color{R: 200, G: 200, B: 200, A: 255}
+	darker := c.Darken(0.2)
 
-		// Darkened color should have lower RGB values
-		if darker.R >= c.R || darker.G >= c.G || darker.B >= c.B {
-			t.Errorf("Darkened color should have lower RGB values, got R:%d G:%d B:%d",
-				darker.R, darker.G, darker.B)
-		}
+	// Darkened color should have lower RGB values
+	if darker.R >= c.R || darker.G >= c.G || darker.B >= c.B {
+		t.Errorf("Darkened color should have lower RGB values, got R:%d G:%d B:%d",
+			darker.R, darker.G, darker.B)
+	}
 
-		// Alpha should remain unchanged
-		if darker.A != c.A {
-			t.Errorf("Alpha should remain unchanged, got %d, want %d", darker.A, c.A)
-		}
-	})
+	// Alpha should remain unchanged
+	if darker.A != c.A {
+		t.Errorf("Alpha should remain unchanged, got %d, want %d", darker.A, c.A)
+	}
+}
 
-	t.Run("WithAlpha", func(t *testing.T) {
-		c := color.Color{R: 100, G: 150, B: 200, A: 255}
-		newAlpha := uint8(128)
-		modified := c.WithAlpha(newAlpha)
+func TestColorWithAlpha(t *testing.T) {
+	c := color.Color{R: 100, G: 150, B: 200, A: 255}
+	newAlpha := uint8(128)
+	modified := c.WithAlpha(newAlpha)
 
-		// RGB values should remain unchanged
-		if modified.R != c.R || modified.G != c.G || modified.B != c.B {
-			t.Errorf("RGB values should remain unchanged")
-		}
+	// RGB values should remain unchanged
+	if modified.R != c.R || modified.G != c.G || modified.B != c.B {
+		t.Errorf("RGB values should remain unchanged")
+	}
 
-		// Alpha should be updated
-		if modified.A != newAlpha {
-			t.Errorf("Alpha should be %d, got %d", newAlpha, modified.A)
-		}
-	})
+	// Alpha should be updated
+	if modified.A != newAlpha {
+		t.Errorf("Alpha should be %d, got %d", newAlpha, modified.A)
+	}
+}
 
-	t.Run("Color conversion roundtrip", func(t *testing.T) {
-		original := color.Color{R: 123, G: 45, B: 67}
-		h, s, l := color.RGBToHSL(original.R, original.G, original.B)
-		r, g, b := color.HSLToRGB(h, s, l)
+func TestColorConversionRoundtrip(t *testing.T) {
+	original := color.Color{R: 123, G: 45, B: 67}
+	h, s, l := color.RGBToHSL(original.R, original.G, original.B)
+	r, g, b := color.HSLToRGB(h, s, l)
 
-		// Allow for small rounding differences (±1)
-		if math.Abs(float64(r)-float64(original.R)) > 1 ||
-			math.Abs(float64(g)-float64(original.G)) > 1 ||
-			math.Abs(float64(b)-float64(original.B)) > 1 {
-			t.Errorf("Color conversion roundtrip failed: original(%d,%d,%d) got(%d,%d,%d)",
-				original.R, original.G, original.B, r, g, b)
-		}
-	})
+	// Allow for small rounding differences (±1)
+	if !colorsNearlyEqual(color.Color{R: r, G: g, B: b}, original) {
+		t.Errorf("Color conversion roundtrip failed: original(%d,%d,%d) got(%d,%d,%d)",
+			original.R, original.G, original.B, r, g, b)
+	}
 }
 
 func TestColorDistance(t *testing.T) {

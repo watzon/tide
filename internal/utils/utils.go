@@ -37,3 +37,16 @@ func ClampInt(i, low, high int) int {
 	}
 	return i
 }
+
+// IsColorIntensityHigh returns true if the color component is above mid-range
+func IsColorIntensityHigh(component uint8) bool {
+	return component > 127
+}
+
+// ColorComponentToBasic converts a color component to its basic form (0 or 255)
+func ColorComponentToBasic(component uint8) uint8 {
+	if IsColorIntensityHigh(component) {
+		return 255
+	}
+	return 0
+}

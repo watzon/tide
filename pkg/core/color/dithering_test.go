@@ -175,160 +175,149 @@ func TestFloydSteinbergDither(t *testing.T) {
 	})
 }
 
-func TestDitherEdgeCases(t *testing.T) {
-	palette := []color.Color{
-		{R: 0, G: 0, B: 0, A: 255},       // Black
-		{R: 255, G: 255, B: 255, A: 255}, // White
-	}
+func TestDitherWithEmptyPalette(t *testing.T) {
 	testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+	methods := []color.DitherMethod{
+		color.DitherNone,
+		color.DitherFloydSteinberg,
+		color.DitherOrdered,
+		color.DitherBayer,
+	}
 
-	t.Run("Empty palette", func(t *testing.T) {
-		// Test all dither methods with empty palette
-		methods := []color.DitherMethod{
-			color.DitherNone,
-			color.DitherFloydSteinberg,
-			color.DitherOrdered,
-			color.DitherBayer,
-		}
-
-		for _, method := range methods {
+	for _, method := range methods {
+		t.Run(fmt.Sprintf("method_%v", method), func(t *testing.T) {
 			result := testColor.Dither(method, 0, 0, nil)
 			if result != testColor {
 				t.Errorf("Method %v with empty palette should return original color", method)
 			}
-		}
-	})
+		})
+	}
+}
 
-	t.Run("Single color palette", func(t *testing.T) {
-		singlePalette := []color.Color{{R: 100, G: 100, B: 100, A: 255}}
-		methods := []color.DitherMethod{
-			color.DitherNone,
-			color.DitherFloydSteinberg,
-			color.DitherOrdered,
-			color.DitherBayer,
-		}
+func TestDitherWithSingleColorPalette(t *testing.T) {
+	testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+	singlePalette := []color.Color{{R: 100, G: 100, B: 100, A: 255}}
+	methods := []color.DitherMethod{
+		color.DitherNone,
+		color.DitherFloydSteinberg,
+		color.DitherOrdered,
+		color.DitherBayer,
+	}
 
-		for _, method := range methods {
+	for _, method := range methods {
+		t.Run(fmt.Sprintf("method_%v", method), func(t *testing.T) {
 			result := testColor.Dither(method, 0, 0, singlePalette)
 			if result != singlePalette[0] {
 				t.Errorf("Method %v with single color palette should return that color", method)
 			}
+		})
+	}
+}
+
+func TestFloydSteinbergWithoutBuffer(t *testing.T) {
+	testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+	palette := []color.Color{
+		{R: 0, G: 0, B: 0, A: 255},       // Black
+		{R: 255, G: 255, B: 255, A: 255}, // White
+	}
+
+	result := testColor.Dither(color.DitherFloydSteinberg, 0, 0, palette)
+	if result != palette[0] && result != palette[1] {
+		t.Error("Floyd-Steinberg without buffer should fall back to nearest color")
+	}
+}
+
+func TestOrderedDitherPattern(t *testing.T) {
+	testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+	palette := []color.Color{
+		{R: 0, G: 0, B: 0, A: 255},       // Black
+		{R: 255, G: 255, B: 255, A: 255}, // White
+	}
+
+	results := make(map[string]color.Color)
+	positions := [][2]int{{0, 0}, {0, 1}, {1, 0}, {1, 1}}
+
+	for _, pos := range positions {
+		result := testColor.Dither(color.DitherOrdered, pos[0], pos[1], palette)
+		key := fmt.Sprintf("%d,%d", pos[0], pos[1])
+		results[key] = result
+	}
+
+	hasBlack := false
+	hasWhite := false
+	for _, c := range results {
+		if c == palette[0] {
+			hasBlack = true
 		}
-	})
-
-	t.Run("Floyd-Steinberg without buffer", func(t *testing.T) {
-		result := testColor.Dither(color.DitherFloydSteinberg, 0, 0, palette)
-		if result != palette[0] && result != palette[1] {
-			t.Error("Floyd-Steinberg without buffer should fall back to nearest color")
+		if c == palette[1] {
+			hasWhite = true
 		}
-	})
+	}
 
-	t.Run("Ordered dither pattern variation", func(t *testing.T) {
-		// Test that adjacent pixels get different colors for 50% gray
-		results := make(map[string]color.Color)
-		positions := [][2]int{{0, 0}, {0, 1}, {1, 0}, {1, 1}}
+	if !hasBlack || !hasWhite {
+		t.Error("Ordered dithering should produce both black and white pixels for 50% gray")
+	}
+}
 
-		for _, pos := range positions {
-			result := testColor.Dither(color.DitherOrdered, pos[0], pos[1], palette)
-			key := fmt.Sprintf("%d,%d", pos[0], pos[1])
-			results[key] = result
-		}
+func TestBayerDitherPattern2x2(t *testing.T) {
+	testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+	palette := []color.Color{
+		{R: 0, G: 0, B: 0, A: 255},       // Black
+		{R: 255, G: 255, B: 255, A: 255}, // White
+	}
 
-		// Check that we have both black and white in the results
-		hasBlack := false
-		hasWhite := false
-		for _, color := range results {
-			if color == palette[0] {
-				hasBlack = true
-			}
-			if color == palette[1] {
-				hasWhite = true
-			}
-		}
-
-		if !hasBlack || !hasWhite {
-			t.Error("Ordered dithering should produce both black and white pixels for 50% gray")
-		}
-	})
-
-	t.Run("Bayer dither pattern", func(t *testing.T) {
-		// Test a 2x2 pattern to ensure it produces a proper dither pattern
-		var blackCount, whiteCount int
-		for y := 0; y < 2; y++ {
-			for x := 0; x < 2; x++ {
-				result := testColor.Dither(color.DitherBayer, x, y, palette)
-				if result == palette[0] {
-					blackCount++
-				} else if result == palette[1] {
-					whiteCount++
-				}
-			}
-		}
-
-		// For 50% gray, we should get a mix of black and white
-		if blackCount == 0 || whiteCount == 0 {
-			t.Errorf("Bayer dithering should produce both black and white pixels, got %d black and %d white",
-				blackCount, whiteCount)
-		}
-	})
-
-	t.Run("Empty matrix fallback", func(t *testing.T) {
-		testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
-		palette := []color.Color{
-			{R: 0, G: 0, B: 0, A: 255},
-			{R: 255, G: 255, B: 255, A: 255},
-		}
-
-		// Temporarily set Bayer4x4 to empty matrix
-		originalBayer := color.Bayer4x4
-		color.Bayer4x4 = color.DitherMatrix{}
-		defer func() {
-			color.Bayer4x4 = originalBayer // Restore original matrix
-		}()
-
-		result := testColor.Dither(color.DitherOrdered, 0, 0, palette)
-
-		// Should fall back to nearest color
-		expectedNearest := testColor.Dither(color.DitherNone, 0, 0, palette)
-		if result != expectedNearest {
-			t.Errorf("Empty matrix should fall back to nearest color, got %v, want %v",
-				result, expectedNearest)
-		}
-	})
-
-	t.Run("Floyd-Steinberg nil buffer", func(t *testing.T) {
-		testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
-		palette := []color.Color{
-			{R: 0, G: 0, B: 0, A: 255},
-			{R: 255, G: 255, B: 255, A: 255},
-		}
-
-		// Test with nil buffer
-		result := testColor.Dither(color.DitherFloydSteinberg, 0, 0, palette, nil)
-
-		// Should fall back to nearest color
-		expectedNearest := testColor.Dither(color.DitherNone, 0, 0, palette)
-		if result != expectedNearest {
-			t.Errorf("Nil buffer should fall back to nearest color, got %v, want %v",
-				result, expectedNearest)
-		}
-	})
-
-	t.Run("Empty palette for all methods", func(t *testing.T) {
-		testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
-		methods := []color.DitherMethod{
-			color.DitherNone,
-			color.DitherFloydSteinberg,
-			color.DitherOrdered,
-			color.DitherBayer,
-		}
-
-		for _, method := range methods {
-			result := testColor.Dither(method, 0, 0, []color.Color{})
-			if result != testColor {
-				t.Errorf("Method %v with empty palette should return original color, got %v, want %v",
-					method, result, testColor)
+	var blackCount, whiteCount int
+	for y := 0; y < 2; y++ {
+		for x := 0; x < 2; x++ {
+			result := testColor.Dither(color.DitherBayer, x, y, palette)
+			if result == palette[0] {
+				blackCount++
+			} else if result == palette[1] {
+				whiteCount++
 			}
 		}
-	})
+	}
+
+	if blackCount == 0 || whiteCount == 0 {
+		t.Errorf("Bayer dithering should produce both black and white pixels, got %d black and %d white",
+			blackCount, whiteCount)
+	}
+}
+
+func TestDitherWithEmptyMatrix(t *testing.T) {
+	testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+	palette := []color.Color{
+		{R: 0, G: 0, B: 0, A: 255},
+		{R: 255, G: 255, B: 255, A: 255},
+	}
+
+	originalBayer := color.Bayer4x4
+	color.Bayer4x4 = color.DitherMatrix{}
+	defer func() {
+		color.Bayer4x4 = originalBayer
+	}()
+
+	result := testColor.Dither(color.DitherOrdered, 0, 0, palette)
+	expectedNearest := testColor.Dither(color.DitherNone, 0, 0, palette)
+
+	if result != expectedNearest {
+		t.Errorf("Empty matrix should fall back to nearest color, got %v, want %v",
+			result, expectedNearest)
+	}
+}
+
+func TestFloydSteinbergWithNilBuffer(t *testing.T) {
+	testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+	palette := []color.Color{
+		{R: 0, G: 0, B: 0, A: 255},
+		{R: 255, G: 255, B: 255, A: 255},
+	}
+
+	result := testColor.Dither(color.DitherFloydSteinberg, 0, 0, palette, nil)
+	expectedNearest := testColor.Dither(color.DitherNone, 0, 0, palette)
+
+	if result != expectedNearest {
+		t.Errorf("Nil buffer should fall back to nearest color, got %v, want %v",
+			result, expectedNearest)
+	}
 }
