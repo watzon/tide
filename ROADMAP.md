@@ -34,6 +34,7 @@
   - ✅ Alternative screen buffer
   - ✅ Window title manipulation
 
+### Phase 2: Widget System (v0.2.0)
 - Widget System Core
   - [ ] Widget lifecycle management
   - [ ] Layout system (Box model)
@@ -44,7 +45,7 @@
   - [ ] Double buffering
   - [ ] Batch updates
 
-### Phase 2: Basic Widgets (v0.2.0)
+### Phase 3: Basic Widgets (v0.3.0)
 - [ ] Container
 - [ ] Text
 - [ ] Button
@@ -55,7 +56,7 @@
 - [ ] Flex Layout
 - [ ] Grid Layout
 
-### Phase 3: Advanced Features (v0.3.0)
+### Phase 4: Advanced Features (v0.4.0)
 - [ ] Theming System
   - [ ] Color schemes
   - [ ] Component styles
@@ -72,7 +73,7 @@
   - [ ] Gesture recognition
   - [ ] Multi-touch support (where available)
 
-### Phase 4: Additional Backends (v0.4.0)
+### Phase 5: Additional Backends (v0.5.0)
 - [ ] Web Backend (WASM)
   - [ ] HTML5 Canvas renderer
   - [ ] DOM event handling
@@ -86,7 +87,7 @@
   - [ ] Native UI integration
   - [ ] Platform-specific features
 
-### Phase 5: Developer Experience (v0.5.0)
+### Phase 6: Developer Experience (v0.6.0)
 - [ ] CLI Tools
   - [ ] Project scaffolding
   - [ ] Widget templates
