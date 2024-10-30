@@ -31,7 +31,9 @@ jobs:
         check-latest: true
 
     - name: Install dependencies
-      run: go mod download
+      run: |
+        go mod download
+        go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
     - name: Check formatting
       run: |
@@ -43,6 +45,14 @@ jobs:
 
     - name: Run vet
       run: go vet ./...
+
+    - name: Check cyclomatic complexity
+      run: |
+        gocyclo -over 15 .
+        if [ $? -eq 1 ]; then
+          echo "Cyclomatic complexity check failed. Complexity must be below 15."
+          exit 1
+        fi
 
     - name: Run tests
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
