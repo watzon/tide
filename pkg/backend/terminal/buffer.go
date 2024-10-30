@@ -5,7 +5,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/geometry"
 )
 
 // Cell represents a single character cell in the buffer
@@ -19,16 +19,16 @@ type Cell struct {
 // Buffer represents a screen buffer
 type Buffer struct {
 	lock   sync.RWMutex
-	cells  map[core.Point]Cell
-	size   core.Size
-	cursor core.Point
+	cells  map[geometry.Point]Cell
+	size   geometry.Size
+	cursor geometry.Point
 	dirty  bool
 }
 
 // NewBuffer creates a new buffer with the given size
-func NewBuffer(size core.Size) *Buffer {
+func NewBuffer(size geometry.Size) *Buffer {
 	return &Buffer{
-		cells: make(map[core.Point]Cell),
+		cells: make(map[geometry.Point]Cell),
 		size:  size,
 	}
 }
@@ -38,7 +38,7 @@ func (b *Buffer) SetCell(x, y int, ch rune, combining []rune, style tcell.Style)
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	pos := core.Point{X: x, Y: y}
+	pos := geometry.Point{X: x, Y: y}
 	b.cells[pos] = Cell{
 		Rune:      ch,
 		Style:     style,
@@ -53,7 +53,7 @@ func (b *Buffer) GetCell(x, y int) (Cell, bool) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
-	cell, ok := b.cells[core.Point{X: x, Y: y}]
+	cell, ok := b.cells[geometry.Point{X: x, Y: y}]
 	return cell, ok
 }
 
@@ -62,12 +62,12 @@ func (b *Buffer) Clear() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	b.cells = make(map[core.Point]Cell)
+	b.cells = make(map[geometry.Point]Cell)
 	b.dirty = true
 }
 
 // Resize resizes the buffer
-func (b *Buffer) Resize(size core.Size) {
+func (b *Buffer) Resize(size geometry.Size) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -75,7 +75,7 @@ func (b *Buffer) Resize(size core.Size) {
 		return
 	}
 
-	newCells := make(map[core.Point]Cell)
+	newCells := make(map[geometry.Point]Cell)
 	for pos, cell := range b.cells {
 		if pos.X < size.Width && pos.Y < size.Height {
 			newCells[pos] = cell
@@ -92,12 +92,12 @@ func (b *Buffer) SetCursor(x, y int) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	b.cursor = core.Point{X: x, Y: y}
+	b.cursor = geometry.Point{X: x, Y: y}
 	b.dirty = true
 }
 
 // GetCursor returns the current cursor position
-func (b *Buffer) GetCursor() core.Point {
+func (b *Buffer) GetCursor() geometry.Point {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
@@ -134,7 +134,7 @@ func (b *Buffer) CopyFrom(other *Buffer) {
 	defer other.lock.RUnlock()
 
 	// Create new map to avoid sharing underlying data
-	b.cells = make(map[core.Point]Cell, len(other.cells))
+	b.cells = make(map[geometry.Point]Cell, len(other.cells))
 	for pos, cell := range other.cells {
 		b.cells[pos] = cell
 	}

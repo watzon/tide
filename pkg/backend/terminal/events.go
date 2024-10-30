@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/geometry"
 )
 
 // Event types for the terminal
@@ -22,7 +22,7 @@ type KeyEvent struct {
 
 type MouseEvent struct {
 	Buttons   tcell.ButtonMask
-	Position  core.Point
+	Position  geometry.Point
 	timestamp time.Time
 }
 

@@ -8,16 +8,17 @@ package engine_test
 import (
 	"testing"
 
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/color"
+	"github.com/watzon/tide/pkg/core/geometry"
 	"github.com/watzon/tide/pkg/engine"
 )
 
 type mockBackend struct {
 	cells [][]rune
-	size  core.Size
+	size  geometry.Size
 }
 
-func newMockBackend(size core.Size) *mockBackend {
+func newMockBackend(size geometry.Size) *mockBackend {
 	cells := make([][]rune, size.Height)
 	for i := range cells {
 		cells[i] = make([]rune, size.Width)
@@ -29,11 +30,11 @@ func newMockBackend(size core.Size) *mockBackend {
 	return &mockBackend{cells: cells, size: size}
 }
 
-func (m *mockBackend) Init() error     { return nil }
-func (m *mockBackend) Shutdown() error { return nil }
-func (m *mockBackend) Size() core.Size { return m.size }
-func (m *mockBackend) Clear()          {}
-func (m *mockBackend) DrawCell(x, y int, ch rune, fg, bg core.Color) {
+func (m *mockBackend) Init() error         { return nil }
+func (m *mockBackend) Shutdown() error     { return nil }
+func (m *mockBackend) Size() geometry.Size { return m.size }
+func (m *mockBackend) Clear()              {}
+func (m *mockBackend) DrawCell(x, y int, ch rune, fg, bg color.Color) {
 	if x >= 0 && x < m.size.Width && y >= 0 && y < m.size.Height {
 		m.cells[y][x] = ch
 	}
@@ -43,22 +44,22 @@ func (m *mockBackend) Present() error { return nil }
 func TestCompositor(t *testing.T) {
 	t.Run("Layer ordering", func(t *testing.T) {
 		comp := engine.NewCompositor()
-		backend := newMockBackend(core.Size{Width: 80, Height: 24})
+		backend := newMockBackend(geometry.Size{Width: 80, Height: 24})
 
 		// Add layers in reverse Z order
 		comp.AddLayer(engine.Layer{
-			Bounds: core.NewRect(0, 0, 10, 10),
+			Bounds: geometry.NewRect(0, 0, 10, 10),
 			Z:      1, // Lower Z-index, drawn first
 			Draw: func(b engine.Backend) {
-				b.DrawCell(5, 5, 'A', core.Color{}, core.Color{})
+				b.DrawCell(5, 5, 'A', color.Color{}, color.Color{})
 			},
 		})
 
 		comp.AddLayer(engine.Layer{
-			Bounds: core.NewRect(0, 0, 10, 10),
+			Bounds: geometry.NewRect(0, 0, 10, 10),
 			Z:      2, // Higher Z-index, drawn last
 			Draw: func(b engine.Backend) {
-				b.DrawCell(5, 5, 'B', core.Color{}, core.Color{})
+				b.DrawCell(5, 5, 'B', color.Color{}, color.Color{})
 			},
 		})
 
@@ -72,7 +73,7 @@ func TestCompositor(t *testing.T) {
 	// Add more test cases
 	t.Run("Empty compositor", func(t *testing.T) {
 		comp := engine.NewCompositor()
-		backend := newMockBackend(core.Size{Width: 80, Height: 24})
+		backend := newMockBackend(geometry.Size{Width: 80, Height: 24})
 
 		// Should not panic
 		comp.Compose(backend)
@@ -80,21 +81,21 @@ func TestCompositor(t *testing.T) {
 
 	t.Run("Multiple layers same Z", func(t *testing.T) {
 		comp := engine.NewCompositor()
-		backend := newMockBackend(core.Size{Width: 80, Height: 24})
+		backend := newMockBackend(geometry.Size{Width: 80, Height: 24})
 
 		comp.AddLayer(engine.Layer{
-			Bounds: core.NewRect(0, 0, 10, 10),
+			Bounds: geometry.NewRect(0, 0, 10, 10),
 			Z:      1,
 			Draw: func(b engine.Backend) {
-				b.DrawCell(5, 5, 'A', core.Color{}, core.Color{})
+				b.DrawCell(5, 5, 'A', color.Color{}, color.Color{})
 			},
 		})
 
 		comp.AddLayer(engine.Layer{
-			Bounds: core.NewRect(0, 0, 10, 10),
+			Bounds: geometry.NewRect(0, 0, 10, 10),
 			Z:      1,
 			Draw: func(b engine.Backend) {
-				b.DrawCell(5, 5, 'B', core.Color{}, core.Color{})
+				b.DrawCell(5, 5, 'B', color.Color{}, color.Color{})
 			},
 		})
 

@@ -16,7 +16,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
 	"github.com/watzon/tide/pkg/backend/terminal"
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/color"
 )
 
 func main() {
@@ -78,11 +78,11 @@ func main() {
 	startY := (size.Height - boxHeight) / 2
 
 	// Colors
-	border := core.Color{R: 75, G: 0, B: 130, A: 255}  // Indigo
-	title := core.Color{R: 255, G: 215, B: 0, A: 255}  // Gold
-	text := core.Color{R: 200, G: 200, B: 200, A: 255} // Light gray
-	bg := core.Color{R: 0, G: 0, B: 0, A: 255}         // Pure black
-	highlight := core.Color{R: 0, G: 255, B: 127}      // Spring green
+	border := color.Color{R: 75, G: 0, B: 130, A: 255}  // Indigo
+	title := color.Color{R: 255, G: 215, B: 0, A: 255}  // Gold
+	text := color.Color{R: 200, G: 200, B: 200, A: 255} // Light gray
+	bg := color.Color{R: 0, G: 0, B: 0, A: 255}         // Pure black
+	highlight := color.Color{R: 0, G: 255, B: 127}      // Spring green
 
 	// Animation ticker
 	ticker := time.NewTicker(50 * time.Millisecond)
@@ -145,7 +145,7 @@ drawLoop:
 					r := uint8(float64(highlight.R) * pulseIntensity)
 					g := uint8(float64(highlight.G) * pulseIntensity)
 					b := uint8(float64(highlight.B) * pulseIntensity)
-					itemFg = core.Color{R: r, G: g, B: b, A: 255}
+					itemFg = color.Color{R: r, G: g, B: b, A: 255}
 				}
 
 				drawStyledText(term, x, y, item.text, itemFg, bg, item.style)
@@ -163,7 +163,7 @@ drawLoop:
 	<-done
 }
 
-func drawBox(term *terminal.Terminal, x, y, width, height int, borderColor, bgColor, textColor core.Color) {
+func drawBox(term *terminal.Terminal, x, y, width, height int, borderColor, bgColor, textColor color.Color) {
 	// Ensure alpha channels are set
 	borderColor.A = 255
 	bgColor.A = 255
@@ -205,7 +205,7 @@ func drawBox(term *terminal.Terminal, x, y, width, height int, borderColor, bgCo
 	}
 }
 
-func drawStyledText(term *terminal.Terminal, x, y int, text string, fg, bg core.Color, style terminal.StyleMask) {
+func drawStyledText(term *terminal.Terminal, x, y int, text string, fg, bg color.Color, style terminal.StyleMask) {
 	// Skip empty strings
 	if len(text) == 0 {
 		return
@@ -228,7 +228,7 @@ func drawColorSpectrum(term *terminal.Terminal, x, y, width int) {
 	for i := 0; i < width; i++ {
 		hue := float64(i) / float64(width) * 360.0
 		r, g, b := hslToRGB(hue, 1.0, 0.5)
-		color := core.Color{R: r, G: g, B: b, A: 255}
+		color := color.Color{R: r, G: g, B: b, A: 255}
 		term.DrawCell(x+i, y, '▀', color, color)
 	}
 }
@@ -241,14 +241,14 @@ func handleMouseClick(term *terminal.Terminal, ev terminal.MouseEvent) {
 			{0, 0}, {1, 0}, {0, 1}, {1, 1}, // 2x2 square
 			{-1, 0}, {0, -1}, {1, -1}, {-1, 1}, // surrounding points
 		}
-		color := core.Color{
+		color := color.Color{
 			R: uint8(time.Now().UnixNano() % 256),
 			G: uint8(time.Now().UnixNano() / 256 % 256),
 			B: uint8(time.Now().UnixNano() / 65536 % 256),
 			A: 255,
 		}
 		for _, p := range pattern {
-			term.DrawCell(x+p.dx, y+p.dy, '•', color, core.Color{})
+			term.DrawCell(x+p.dx, y+p.dy, '•', color, color)
 		}
 	}
 }

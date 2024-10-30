@@ -14,7 +14,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/watzon/tide/pkg/backend/terminal"
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/color"
+	"github.com/watzon/tide/pkg/core/geometry"
 )
 
 type testContext struct {
@@ -61,9 +62,9 @@ func TestTerminal(t *testing.T) {
 		wg.Add(1)
 
 		resizeCalled := false
-		newSize := core.Size{}
+		newSize := geometry.Size{}
 
-		ctx.term.OnResize(func(size core.Size) {
+		ctx.term.OnResize(func(size geometry.Size) {
 			resizeCalled = true
 			newSize = size
 			wg.Done()
@@ -124,8 +125,8 @@ func TestTerminal(t *testing.T) {
 
 		// Draw a character
 		ctx.term.DrawCell(0, 0, 'A',
-			core.Color{R: 255, G: 255, B: 255, A: 255},
-			core.Color{R: 0, G: 0, B: 0, A: 255},
+			color.Color{R: 255, G: 255, B: 255, A: 255},
+			color.Color{R: 0, G: 0, B: 0, A: 255},
 		)
 		ctx.term.Present()
 
@@ -175,8 +176,8 @@ func TestTerminal(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				ctx.term.DrawStyledCell(0, 0, 'X',
-					core.Color{R: 255, G: 255, B: 255, A: 255},
-					core.Color{R: 0, G: 0, B: 0, A: 255},
+					color.Color{R: 255, G: 255, B: 255, A: 255},
+					color.Color{R: 0, G: 0, B: 0, A: 255},
 					tt.style,
 				)
 				ctx.term.Present()
@@ -194,7 +195,7 @@ func TestTerminal(t *testing.T) {
 		ctx := setupTest(t)
 		defer ctx.term.Shutdown()
 
-		region := core.NewRect(1, 1, 3, 3)
+		region := geometry.NewRect(1, 1, 3, 3)
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorWhite).
 			Background(tcell.ColorBlue)
@@ -255,9 +256,9 @@ func TestTerminal(t *testing.T) {
 		wg.Add(1)
 
 		resizeCalled := false
-		newSize := core.Size{}
+		newSize := geometry.Size{}
 
-		ctx.term.OnResize(func(size core.Size) {
+		ctx.term.OnResize(func(size geometry.Size) {
 			resizeCalled = true
 			newSize = size
 			wg.Done()
@@ -418,8 +419,8 @@ func TestTerminalConcurrency(t *testing.T) {
 					}()
 
 					ctx.term.DrawCell(0, 0, 'X',
-						core.Color{R: 255, G: 255, B: 255, A: 255},
-						core.Color{R: 0, G: 0, B: 0, A: 255},
+						color.Color{R: 255, G: 255, B: 255, A: 255},
+						color.Color{R: 0, G: 0, B: 0, A: 255},
 					)
 					ctx.term.Present()
 					_ = ctx.term.Size()
@@ -509,8 +510,8 @@ func TestCombiningCharacters(t *testing.T) {
 			x := 0
 			for _, ch := range tt.input {
 				ctx.term.DrawStyledCell(x, 0, ch,
-					core.Color{R: 255, G: 255, B: 255, A: 255},
-					core.Color{R: 0, G: 0, B: 0, A: 255},
+					color.Color{R: 255, G: 255, B: 255, A: 255},
+					color.Color{R: 0, G: 0, B: 0, A: 255},
 					0,
 				)
 				if !tt.combining || !unicode.IsMark(ch) {

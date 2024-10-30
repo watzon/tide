@@ -8,11 +8,11 @@ package engine
 import (
 	"sort"
 
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/geometry"
 )
 
 type Layer struct {
-	Bounds core.Rect
+	Bounds geometry.Rect
 	Z      int
 	Draw   func(b Backend)
 }

@@ -13,22 +13,23 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/internal/utils"
+	"github.com/watzon/tide/pkg/core/color"
 )
 
 // colorCache provides thread-safe caching of color conversions
 type colorCache struct {
 	sync.RWMutex
-	trueColors map[core.Color]tcell.Color
-	palette256 map[core.Color]tcell.Color
-	palette16  map[core.Color]tcell.Color
+	trueColors map[color.Color]tcell.Color
+	palette256 map[color.Color]tcell.Color
+	palette16  map[color.Color]tcell.Color
 }
 
 func newColorCache() *colorCache {
 	return &colorCache{
-		trueColors: make(map[core.Color]tcell.Color),
-		palette256: make(map[core.Color]tcell.Color),
-		palette16:  make(map[core.Color]tcell.Color),
+		trueColors: make(map[color.Color]tcell.Color),
+		palette256: make(map[color.Color]tcell.Color),
+		palette16:  make(map[color.Color]tcell.Color),
 	}
 }
 
@@ -45,8 +46,8 @@ func NewColorOptimizer(mode ColorMode) *ColorOptimizer {
 	}
 }
 
-// GetColor returns an optimized tcell.Color for the given core.Color
-func (co *ColorOptimizer) GetColor(c core.Color) tcell.Color {
+// GetColor returns an optimized tcell.Color for the given core_color.Color
+func (co *ColorOptimizer) GetColor(c color.Color) tcell.Color {
 	// Handle transparent/nil colors
 	if c.A == 0 {
 		return tcell.ColorDefault
@@ -103,11 +104,11 @@ func (co *ColorOptimizer) GetColor(c core.Color) tcell.Color {
 	return result
 }
 
-func (co *ColorOptimizer) convertTrueColor(c core.Color) tcell.Color {
+func (co *ColorOptimizer) convertTrueColor(c color.Color) tcell.Color {
 	return tcell.NewRGBColor(int32(c.R), int32(c.G), int32(c.B))
 }
 
-func (co *ColorOptimizer) convert256Color(c core.Color) tcell.Color {
+func (co *ColorOptimizer) convert256Color(c color.Color) tcell.Color {
 	// Standard 216 color cube (6x6x6)
 	if c.R == c.G && c.G == c.B {
 		// Grayscale (24 levels)
@@ -129,17 +130,17 @@ func (co *ColorOptimizer) convert256Color(c core.Color) tcell.Color {
 	return tcell.PaletteColor(16 + (36 * r) + (6 * g) + b)
 }
 
-func (co *ColorOptimizer) convert16Color(c core.Color) tcell.Color {
+func (co *ColorOptimizer) convert16Color(c color.Color) tcell.Color {
 	// For debugging, let's log the intensity decision for pure colors
 	if testing.Verbose() {
-		maxChannel := max(max(c.R, c.G), c.B)
-		minChannel := min(min(c.R, c.G), c.B)
-		_, s, l := rgbToHsl(c.R, c.G, c.B)
+		maxChannel := utils.Max(utils.Max(c.R, c.G), c.B)
+		minChannel := utils.Min(utils.Min(c.R, c.G), c.B)
+		_, s, l := color.RGBToHSL(c.R, c.G, c.B)
 		fmt.Printf("Color RGB(%d,%d,%d) - max: %d, min: %d, HSL(s: %.2f, l: %.2f) - intense: %v\n",
 			c.R, c.G, c.B, maxChannel, minChannel, s, l, isIntenseColor(c))
 	}
 
-	h, s, l := rgbToHsl(c.R, c.G, c.B)
+	h, s, l := color.RGBToHSL(c.R, c.G, c.B)
 
 	// Handle grayscale colors first
 	if s < 0.2 {
@@ -171,9 +172,9 @@ func (co *ColorOptimizer) convert16Color(c core.Color) tcell.Color {
 }
 
 // Helper for determining relative color intensity
-func isIntenseColor(c core.Color) bool {
-	maxChannel := max(max(c.R, c.G), c.B)
-	minChannel := min(min(c.R, c.G), c.B)
+func isIntenseColor(c color.Color) bool {
+	maxChannel := utils.Max(utils.Max(c.R, c.G), c.B)
+	minChannel := utils.Min(utils.Min(c.R, c.G), c.B)
 
 	// Pure colors (like 255,0,0) should NOT be considered intense
 	if maxChannel == 255 && minChannel == 0 {
@@ -186,23 +187,8 @@ func isIntenseColor(c core.Color) bool {
 	}
 
 	// For other cases, use HSL
-	_, s, l := rgbToHsl(c.R, c.G, c.B)
+	_, s, l := color.RGBToHSL(c.R, c.G, c.B)
 	return l > 0.6 && s < 0.8
-}
-
-// Helper functions for finding min/max
-func max(a, b uint8) uint8 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b uint8) uint8 {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // Helper functions
@@ -214,45 +200,7 @@ func pickColor(bright bool, dark, light tcell.Color) tcell.Color {
 	return dark
 }
 
-func rgbToHsl(r, g, b uint8) (h, s, l float64) {
-	fr := float64(r) / 255.0
-	fg := float64(g) / 255.0
-	fb := float64(b) / 255.0
-
-	max := math.Max(math.Max(fr, fg), fb)
-	min := math.Min(math.Min(fr, fg), fb)
-
-	l = (max + min) / 2.0
-
-	if max == min {
-		// achromatic
-		return 0, 0, l
-	}
-
-	d := max - min
-	if l > 0.5 {
-		s = d / (2.0 - max - min)
-	} else {
-		s = d / (max + min)
-	}
-
-	switch max {
-	case fr:
-		h = (fg - fb) / d
-		if fg < fb {
-			h += 6
-		}
-	case fg:
-		h = (fb-fr)/d + 2
-	case fb:
-		h = (fr-fg)/d + 4
-	}
-	h *= 60
-
-	return h, s, l
-}
-
 // Add color optimizer to Terminal struct
-func (t *Terminal) optimizeColor(c core.Color) tcell.Color {
+func (t *Terminal) optimizeColor(c color.Color) tcell.Color {
 	return t.colorOptimizer.GetColor(c)
 }

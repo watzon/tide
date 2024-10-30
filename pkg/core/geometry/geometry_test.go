@@ -3,17 +3,17 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-package core_test
+package geometry_test
 
 import (
 	"testing"
 
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/geometry"
 )
 
 func TestRect(t *testing.T) {
 	t.Run("NewRect", func(t *testing.T) {
-		rect := core.NewRect(10, 20, 30, 40)
+		rect := geometry.NewRect(10, 20, 30, 40)
 
 		if rect.Min.X != 10 || rect.Min.Y != 20 {
 			t.Errorf("expected Min point (10,20), got (%d,%d)", rect.Min.X, rect.Min.Y)
@@ -25,7 +25,7 @@ func TestRect(t *testing.T) {
 	})
 
 	t.Run("Size", func(t *testing.T) {
-		rect := core.NewRect(10, 20, 30, 40)
+		rect := geometry.NewRect(10, 20, 30, 40)
 		size := rect.Size()
 
 		if size.Width != 30 || size.Height != 40 {
@@ -34,17 +34,17 @@ func TestRect(t *testing.T) {
 	})
 
 	t.Run("Contains", func(t *testing.T) {
-		rect := core.NewRect(10, 20, 30, 40)
+		rect := geometry.NewRect(10, 20, 30, 40)
 		tests := []struct {
-			point    core.Point
+			point    geometry.Point
 			expected bool
 			name     string
 		}{
-			{core.Point{X: 15, Y: 25}, true, "point inside"},
-			{core.Point{X: 5, Y: 25}, false, "point left"},
-			{core.Point{X: 45, Y: 25}, false, "point right"},
-			{core.Point{X: 15, Y: 15}, false, "point above"},
-			{core.Point{X: 15, Y: 65}, false, "point below"},
+			{geometry.Point{X: 15, Y: 25}, true, "point inside"},
+			{geometry.Point{X: 5, Y: 25}, false, "point left"},
+			{geometry.Point{X: 45, Y: 25}, false, "point right"},
+			{geometry.Point{X: 15, Y: 15}, false, "point above"},
+			{geometry.Point{X: 15, Y: 65}, false, "point below"},
 		}
 
 		for _, tt := range tests {

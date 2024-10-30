@@ -15,7 +15,9 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/internal/utils"
+	"github.com/watzon/tide/pkg/core/color"
+	"github.com/watzon/tide/pkg/core/geometry"
 )
 
 // StyleMask represents different text style attributes
@@ -54,7 +56,7 @@ type Terminal struct {
 	clipboardProvider ClipboardProvider
 
 	// State
-	size      core.Size
+	size      geometry.Size
 	mouseMode MouseMode
 	focused   bool
 	suspended bool
@@ -63,7 +65,7 @@ type Terminal struct {
 	stopChan  chan struct{}
 
 	// Callbacks
-	onResize      func(core.Size)
+	onResize      func(geometry.Size)
 	onFocusChange func(bool)
 	onSuspend     func()
 	onResume      func()
@@ -127,7 +129,7 @@ func NewWithScreen(screen tcell.Screen, config *Config) (*Terminal, error) {
 	}
 
 	width, height := screen.Size()
-	size := core.Size{Width: width, Height: height}
+	size := geometry.Size{Width: width, Height: height}
 
 	term := strings.ToLower(os.Getenv("TERM"))
 	colorTerm := strings.ToLower(os.Getenv("COLORTERM"))
@@ -210,11 +212,11 @@ func (t *Terminal) Clear() {
 	t.screen.Clear()
 }
 
-func (t *Terminal) DrawCell(x, y int, ch rune, fg, bg core.Color) {
+func (t *Terminal) DrawCell(x, y int, ch rune, fg, bg color.Color) {
 	t.DrawStyledCell(x, y, ch, fg, bg, 0)
 }
 
-func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg core.Color, style StyleMask) {
+func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg color.Color, style StyleMask) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
@@ -275,7 +277,7 @@ func (t *Terminal) DrawStyledCell(x, y int, ch rune, fg, bg core.Color, style St
 	backBuffer.SetCell(x, y, ch, nil, tcellStyle)
 }
 
-func (t *Terminal) DrawRegion(region core.Rect, style tcell.Style, ch rune) {
+func (t *Terminal) DrawRegion(region geometry.Rect, style tcell.Style, ch rune) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
@@ -287,7 +289,7 @@ func (t *Terminal) DrawRegion(region core.Rect, style tcell.Style, ch rune) {
 }
 
 // DrawText draws a string of text, handling combining characters appropriately
-func (t *Terminal) DrawText(x, y int, text string, fg, bg core.Color, style StyleMask) {
+func (t *Terminal) DrawText(x, y int, text string, fg, bg color.Color, style StyleMask) {
 	currentX := x
 	for _, ch := range text {
 		t.DrawStyledCell(currentX, y, ch, fg, bg, style)
@@ -335,7 +337,7 @@ func (t *Terminal) Present() error {
 
 	for y := 0; y < t.size.Height; y++ {
 		for x := 0; x < t.size.Width; x++ {
-			pos := core.Point{X: x, Y: y}
+			pos := geometry.Point{X: x, Y: y}
 
 			backCell, backExists := back.cells[pos]
 			frontCell, frontExists := front.cells[pos]
@@ -343,7 +345,7 @@ func (t *Terminal) Present() error {
 			if backExists && frontExists &&
 				backCell.Rune == frontCell.Rune &&
 				backCell.Style == frontCell.Style &&
-				equalRunes(backCell.Combining, frontCell.Combining) {
+				utils.EqualRunes(backCell.Combining, frontCell.Combining) {
 				continue
 			}
 
@@ -369,12 +371,12 @@ func (t *Terminal) Present() error {
 
 // Size and cursor management
 
-func (t *Terminal) Size() core.Size {
+func (t *Terminal) Size() geometry.Size {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
 	width, height := t.screen.Size()
-	return core.Size{Width: width, Height: height}
+	return geometry.Size{Width: width, Height: height}
 }
 
 func (t *Terminal) SetCursor(x, y int) {
@@ -384,7 +386,7 @@ func (t *Terminal) SetCursor(x, y int) {
 	t.mainBackBuffer.SetCursor(x, y)
 }
 
-func (t *Terminal) GetCursor() core.Point {
+func (t *Terminal) GetCursor() geometry.Point {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
@@ -461,7 +463,7 @@ func (t *Terminal) eventLoop(pollInterval time.Duration) {
 				switch ev := ev.(type) {
 				case *tcell.EventResize:
 					width, height := ev.Size()
-					t.size = core.Size{Width: width, Height: height}
+					t.size = geometry.Size{Width: width, Height: height}
 					t.screen.Sync()
 					if t.onResize != nil {
 						t.onResize(t.size)
@@ -493,7 +495,7 @@ func (t *Terminal) handleMouse(ev *tcell.EventMouse) {
 	// Create mouse event
 	event := MouseEvent{
 		Buttons:   buttons,
-		Position:  core.Point{X: x, Y: y},
+		Position:  geometry.Point{X: x, Y: y},
 		timestamp: ev.When(),
 	}
 
@@ -570,7 +572,7 @@ func (t *Terminal) GetClipboard() (string, error) {
 
 // Callbacks
 
-func (t *Terminal) OnResize(callback func(core.Size)) {
+func (t *Terminal) OnResize(callback func(geometry.Size)) {
 	t.onResize = callback
 }
 

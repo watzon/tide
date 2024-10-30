@@ -21,9 +21,9 @@
     - ✅ 16-color mode
     - ✅ 256-color mode
     - ✅ True color support
-    - [ ] Color dithering
-    - [ ] Color profiles
-    - [ ] Color interpolation
+    - ✅ Color dithering
+    - ✅ Color profiles
+    - ✅ Color interpolation
   - ✅ Window resize handling
   - ✅ Input event system
   - ✅ Unicode support

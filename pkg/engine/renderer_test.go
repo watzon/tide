@@ -8,26 +8,27 @@ package engine_test
 import (
 	"testing"
 
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/color"
+	"github.com/watzon/tide/pkg/core/geometry"
 	"github.com/watzon/tide/pkg/engine"
 )
 
 type testBackend struct {
 	cleared bool
 	present bool
-	size    core.Size
+	size    geometry.Size
 }
 
 func newTestBackend() *testBackend {
-	return &testBackend{size: core.Size{Width: 80, Height: 24}}
+	return &testBackend{size: geometry.Size{Width: 80, Height: 24}}
 }
 
-func (b *testBackend) Init() error                                   { return nil }
-func (b *testBackend) Shutdown() error                               { return nil }
-func (b *testBackend) Size() core.Size                               { return b.size }
-func (b *testBackend) Clear()                                        { b.cleared = true }
-func (b *testBackend) DrawCell(x, y int, ch rune, fg, bg core.Color) {}
-func (b *testBackend) Present() error                                { b.present = true; return nil }
+func (b *testBackend) Init() error                                    { return nil }
+func (b *testBackend) Shutdown() error                                { return nil }
+func (b *testBackend) Size() geometry.Size                            { return b.size }
+func (b *testBackend) Clear()                                         { b.cleared = true }
+func (b *testBackend) DrawCell(x, y int, ch rune, fg, bg color.Color) {}
+func (b *testBackend) Present() error                                 { b.present = true; return nil }
 
 func TestRenderer(t *testing.T) {
 	t.Run("Render cycle", func(t *testing.T) {

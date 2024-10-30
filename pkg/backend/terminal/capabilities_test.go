@@ -12,7 +12,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/watzon/tide/pkg/backend/terminal"
-	"github.com/watzon/tide/pkg/core"
+	"github.com/watzon/tide/pkg/core/color"
 )
 
 func withEnv(env map[string]string, f func()) {
@@ -98,15 +98,15 @@ func TestColorModeDetection(t *testing.T) {
 func TestColorDrawing(t *testing.T) {
 	tests := []struct {
 		name   string
-		fg     core.Color
-		bg     core.Color
+		fg     color.Color
+		bg     color.Color
 		env    map[string]string
 		verify func(*testing.T, tcell.SimulationScreen, tcell.Style)
 	}{
 		{
 			name: "true color support",
-			fg:   core.Color{R: 123, G: 45, B: 67, A: 255},
-			bg:   core.Color{R: 89, G: 156, B: 234, A: 255},
+			fg:   color.Color{R: 123, G: 45, B: 67, A: 255},
+			bg:   color.Color{R: 89, G: 156, B: 234, A: 255},
 			env: map[string]string{
 				"TERM":      "xterm-direct",
 				"COLORTERM": "truecolor",
@@ -126,8 +126,8 @@ func TestColorDrawing(t *testing.T) {
 		},
 		{
 			name: "basic color fallback",
-			fg:   core.Color{R: 255, G: 0, B: 0, A: 255}, // Pure red
-			bg:   core.Color{R: 0, G: 0, B: 255, A: 255}, // Pure blue
+			fg:   color.Color{R: 255, G: 0, B: 0, A: 255}, // Pure red
+			bg:   color.Color{R: 0, G: 0, B: 255, A: 255}, // Pure blue
 			env: map[string]string{
 				"TERM":      "xterm-color",
 				"COLORTERM": "",
@@ -150,8 +150,8 @@ func TestColorDrawing(t *testing.T) {
 		},
 		{
 			name: "bright basic colors",
-			fg:   core.Color{R: 255, G: 128, B: 128, A: 255}, // Bright red
-			bg:   core.Color{R: 128, G: 128, B: 255, A: 255}, // Bright blue
+			fg:   color.Color{R: 255, G: 128, B: 128, A: 255}, // Bright red
+			bg:   color.Color{R: 128, G: 128, B: 255, A: 255}, // Bright blue
 			env: map[string]string{
 				"TERM":      "xterm-color",
 				"COLORTERM": "",
@@ -229,8 +229,8 @@ func TestStyleAttributes(t *testing.T) {
 
 			// Draw with style
 			ctx.term.DrawStyledCell(0, 0, 'X',
-				core.Color{R: 255, G: 255, B: 255, A: 255},
-				core.Color{R: 0, G: 0, B: 0, A: 255},
+				color.Color{R: 255, G: 255, B: 255, A: 255},
+				color.Color{R: 0, G: 0, B: 0, A: 255},
 				tt.style,
 			)
 			ctx.term.Present()
