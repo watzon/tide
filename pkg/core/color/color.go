@@ -209,6 +209,11 @@ func (c Color) WithAlpha(alpha uint8) Color {
 	return Color{R: c.R, G: c.G, B: c.B, A: alpha}
 }
 
+// IsTransparent returns true if the color is fully transparent
+func (c Color) IsTransparent() bool {
+	return c.A == 0
+}
+
 // ColorDistance calculates the Euclidean distance between two colors in RGB space.
 // Returns a value between 0 (identical colors) and ~441.67 (distance between black and white).
 func ColorDistance(c1, c2 Color) float64 {
@@ -216,4 +221,65 @@ func ColorDistance(c1, c2 Color) float64 {
 	dg := float64(c1.G) - float64(c2.G)
 	db := float64(c1.B) - float64(c2.B)
 	return math.Sqrt(dr*dr + dg*dg + db*db)
+}
+
+// QuantizeTo returns a new color quantized to the specified color mode
+func (c Color) QuantizeTo(mode ColorMode) Color {
+	switch mode {
+	case ColorNone:
+		return Color{} // Return default color
+	case Color16:
+		return c.quantizeTo16()
+	case Color256:
+		return c.quantizeTo256()
+	default:
+		return c // TrueColor, return as-is
+	}
+}
+
+func (c Color) quantizeTo16() Color {
+	// Simple 16-color quantization
+	// This is a basic implementation - you might want to improve it
+	if c.A < 128 {
+		return Color{}
+	}
+
+	// Convert to basic colors
+	r := c.R > 127
+	g := c.G > 127
+	b := c.B > 127
+
+	switch {
+	case !r && !g && !b:
+		return Color{R: 0, G: 0, B: 0, A: 255}
+	case !r && !g && b:
+		return Color{R: 0, G: 0, B: 255, A: 255}
+	case !r && g && !b:
+		return Color{R: 0, G: 255, B: 0, A: 255}
+	case !r && g && b:
+		return Color{R: 0, G: 255, B: 255, A: 255}
+	case r && !g && !b:
+		return Color{R: 255, G: 0, B: 0, A: 255}
+	case r && !g && b:
+		return Color{R: 255, G: 0, B: 255, A: 255}
+	case r && g && !b:
+		return Color{R: 255, G: 255, B: 0, A: 255}
+	default:
+		return Color{R: 255, G: 255, B: 255, A: 255}
+	}
+}
+
+func (c Color) quantizeTo256() Color {
+	// Basic 256-color quantization
+	// This is a simplified version - you might want to improve it
+	if c.A < 128 {
+		return Color{}
+	}
+
+	// Quantize to 6x6x6 color cube
+	r := uint8((float64(c.R) * 5 / 255) * 255 / 5)
+	g := uint8((float64(c.G) * 5 / 255) * 255 / 5)
+	b := uint8((float64(c.B) * 5 / 255) * 255 / 5)
+
+	return Color{R: r, G: g, B: b, A: 255}
 }

@@ -36,7 +36,7 @@
 
 ### Phase 2: Widget System (v0.2.0)
 - Widget System Core
-  - [ ] Widget lifecycle management
+  - ✅ Widget lifecycle management
   - [ ] Layout system (Box model)
   - [ ] State management
   - [ ] Event propagation

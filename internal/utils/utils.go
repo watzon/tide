@@ -14,18 +14,28 @@ func EqualRunes(a, b []rune) bool {
 }
 
 // Helper functions for finding min/max
-func Max(a, b uint8) uint8 {
+func Max(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
 }
 
-func Min(a, b uint8) uint8 {
+func Min(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
+}
+
+func Clamp(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
 }
 
 func AbsInt(x int) int {
