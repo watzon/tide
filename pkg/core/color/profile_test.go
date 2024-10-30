@@ -1,9 +1,9 @@
 package color_test
 
 import (
+	"math"
 	"testing"
 
-	"github.com/watzon/tide/internal/utils"
 	"github.com/watzon/tide/pkg/core/color"
 )
 
@@ -123,9 +123,9 @@ func TestColorProfiles(t *testing.T) {
 				linear := tt.input.ToLinearRGB(tt.gamma)
 				result := linear.FromLinearRGB(tt.gamma)
 				// Allow for small rounding differences (±1)
-				if utils.AbsInt(int(result.R)-int(tt.input.R)) > 1 ||
-					utils.AbsInt(int(result.G)-int(tt.input.G)) > 1 ||
-					utils.AbsInt(int(result.B)-int(tt.input.B)) > 1 ||
+				if math.Abs(float64(result.R)-float64(tt.input.R)) > 1 ||
+					math.Abs(float64(result.G)-float64(tt.input.G)) > 1 ||
+					math.Abs(float64(result.B)-float64(tt.input.B)) > 1 ||
 					result.A != tt.input.A {
 					t.Errorf("Roundtrip conversion failed: got %v, want %v (±1)", result, tt.input)
 				}

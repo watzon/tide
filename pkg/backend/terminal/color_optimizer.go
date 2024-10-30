@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/watzon/tide/internal/utils"
 	"github.com/watzon/tide/pkg/core/color"
 )
 
@@ -133,8 +132,8 @@ func (co *ColorOptimizer) convert256Color(c color.Color) tcell.Color {
 func (co *ColorOptimizer) convert16Color(c color.Color) tcell.Color {
 	// For debugging, let's log the intensity decision for pure colors
 	if testing.Verbose() {
-		maxChannel := utils.Max(utils.Max(c.R, c.G), c.B)
-		minChannel := utils.Min(utils.Min(c.R, c.G), c.B)
+		maxChannel := max(max(c.R, c.G), c.B)
+		minChannel := min(min(c.R, c.G), c.B)
 		_, s, l := color.RGBToHSL(c.R, c.G, c.B)
 		fmt.Printf("Color RGB(%d,%d,%d) - max: %d, min: %d, HSL(s: %.2f, l: %.2f) - intense: %v\n",
 			c.R, c.G, c.B, maxChannel, minChannel, s, l, isIntenseColor(c))
@@ -173,8 +172,8 @@ func (co *ColorOptimizer) convert16Color(c color.Color) tcell.Color {
 
 // Helper for determining relative color intensity
 func isIntenseColor(c color.Color) bool {
-	maxChannel := utils.Max(utils.Max(c.R, c.G), c.B)
-	minChannel := utils.Min(utils.Min(c.R, c.G), c.B)
+	maxChannel := max(max(c.R, c.G), c.B)
+	minChannel := min(min(c.R, c.G), c.B)
 
 	// Pure colors (like 255,0,0) should NOT be considered intense
 	if maxChannel == 255 && minChannel == 0 {

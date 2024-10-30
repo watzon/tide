@@ -6,9 +6,9 @@
 package color_test
 
 import (
+	"math"
 	"testing"
 
-	"github.com/watzon/tide/internal/utils"
 	"github.com/watzon/tide/pkg/core/color"
 )
 
@@ -145,9 +145,9 @@ func TestColorModifications(t *testing.T) {
 		r, g, b := color.HSLToRGB(h, s, l)
 
 		// Allow for small rounding differences (±1)
-		if utils.AbsInt(int(r)-int(original.R)) > 1 ||
-			utils.AbsInt(int(g)-int(original.G)) > 1 ||
-			utils.AbsInt(int(b)-int(original.B)) > 1 {
+		if math.Abs(float64(r)-float64(original.R)) > 1 ||
+			math.Abs(float64(g)-float64(original.G)) > 1 ||
+			math.Abs(float64(b)-float64(original.B)) > 1 {
 			t.Errorf("Color conversion roundtrip failed: original(%d,%d,%d) got(%d,%d,%d)",
 				original.R, original.G, original.B, r, g, b)
 		}

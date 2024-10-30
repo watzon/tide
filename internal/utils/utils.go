@@ -13,34 +13,22 @@ func EqualRunes(a, b []rune) bool {
 	return true
 }
 
-// Helper functions for finding min/max
-func Max(a, b int) int {
-	if a > b {
-		return a
+func Clamp(f, low, high float32) float32 {
+	if f < low {
+		return low
 	}
-	return b
+	if f > high {
+		return high
+	}
+	return f
 }
 
-func Min(a, b int) int {
-	if a < b {
-		return a
+func ClampInt(i, low, high int) int {
+	if i < low {
+		return low
 	}
-	return b
-}
-
-func Clamp(value, min, max int) int {
-	if value < min {
-		return min
+	if i > high {
+		return high
 	}
-	if value > max {
-		return max
-	}
-	return value
-}
-
-func AbsInt(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
+	return i
 }

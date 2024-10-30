@@ -61,12 +61,12 @@ func (c Constraints) Normalize() Constraints {
 	// Ensure min <= max
 	return Constraints{
 		MinSize: geometry.Size{
-			Width:  utils.Min(c.MinSize.Width, c.MaxSize.Width),
-			Height: utils.Min(c.MinSize.Height, c.MaxSize.Height),
+			Width:  min(c.MinSize.Width, c.MaxSize.Width),
+			Height: min(c.MinSize.Height, c.MaxSize.Height),
 		},
 		MaxSize: geometry.Size{
-			Width:  utils.Max(c.MinSize.Width, c.MaxSize.Width),
-			Height: utils.Max(c.MinSize.Height, c.MaxSize.Height),
+			Width:  max(c.MinSize.Width, c.MaxSize.Width),
+			Height: max(c.MinSize.Height, c.MaxSize.Height),
 		},
 	}
 }
@@ -74,8 +74,8 @@ func (c Constraints) Normalize() Constraints {
 // Constrain forces a size to fit within the constraints
 func (c Constraints) Constrain(size geometry.Size) geometry.Size {
 	return geometry.Size{
-		Width:  utils.Clamp(size.Width, c.MinSize.Width, c.MaxSize.Width),
-		Height: utils.Clamp(size.Height, c.MinSize.Height, c.MaxSize.Height),
+		Width:  utils.ClampInt(size.Width, c.MinSize.Width, c.MaxSize.Width),
+		Height: utils.ClampInt(size.Height, c.MinSize.Height, c.MaxSize.Height),
 	}
 }
 

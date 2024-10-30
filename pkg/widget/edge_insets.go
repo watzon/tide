@@ -93,29 +93,29 @@ func (e EdgeInsets) IsZero() bool {
 // Max returns EdgeInsets with the maximum value between two EdgeInsets for each side
 func (e EdgeInsets) Max(other EdgeInsets) EdgeInsets {
 	return EdgeInsets{
-		Top:    utils.Max(e.Top, other.Top),
-		Right:  utils.Max(e.Right, other.Right),
-		Bottom: utils.Max(e.Bottom, other.Bottom),
-		Left:   utils.Max(e.Left, other.Left),
+		Top:    max(e.Top, other.Top),
+		Right:  max(e.Right, other.Right),
+		Bottom: max(e.Bottom, other.Bottom),
+		Left:   max(e.Left, other.Left),
 	}
 }
 
 // Min returns EdgeInsets with the minimum value between two EdgeInsets for each side
 func (e EdgeInsets) Min(other EdgeInsets) EdgeInsets {
 	return EdgeInsets{
-		Top:    utils.Min(e.Top, other.Top),
-		Right:  utils.Min(e.Right, other.Right),
-		Bottom: utils.Min(e.Bottom, other.Bottom),
-		Left:   utils.Min(e.Left, other.Left),
+		Top:    min(e.Top, other.Top),
+		Right:  min(e.Right, other.Right),
+		Bottom: min(e.Bottom, other.Bottom),
+		Left:   min(e.Left, other.Left),
 	}
 }
 
 // Clamp ensures all insets are within a range
 func (e EdgeInsets) Clamp(min, max int) EdgeInsets {
 	return EdgeInsets{
-		Top:    utils.Clamp(e.Top, min, max),
-		Right:  utils.Clamp(e.Right, min, max),
-		Bottom: utils.Clamp(e.Bottom, min, max),
-		Left:   utils.Clamp(e.Left, min, max),
+		Top:    utils.ClampInt(e.Top, min, max),
+		Right:  utils.ClampInt(e.Right, min, max),
+		Bottom: utils.ClampInt(e.Bottom, min, max),
+		Left:   utils.ClampInt(e.Left, min, max),
 	}
 }
