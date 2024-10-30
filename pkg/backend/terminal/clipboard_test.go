@@ -58,9 +58,35 @@ func TestFallbackClipboard(t *testing.T) {
 	})
 }
 
+// hasClipboardUtility checks if the system has any supported clipboard utility
+func hasClipboardUtility() bool {
+	switch runtime.GOOS {
+	case "darwin":
+		_, err := exec.LookPath("pbcopy")
+		return err == nil
+	case "linux":
+		// Check for any of the supported utilities
+		for _, cmd := range []string{"xsel", "xclip", "wl-copy"} {
+			if _, err := exec.LookPath(cmd); err == nil {
+				return true
+			}
+		}
+		return false
+	case "windows":
+		_, err := exec.LookPath("powershell.exe")
+		return err == nil
+	default:
+		return false
+	}
+}
+
 func TestSystemClipboard(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping system clipboard test in short mode")
+	}
+
+	if !hasClipboardUtility() {
+		t.Skip("skipping system clipboard test - no clipboard utility available")
 	}
 
 	t.Run("system clipboard operations", func(t *testing.T) {
@@ -74,7 +100,7 @@ func TestSystemClipboard(t *testing.T) {
 				// Test pbcopy/pbpaste
 				err := clipboard.Set(testContent)
 				if err != nil {
-					t.Logf("pbcopy failed: %v", err)
+					t.Errorf("pbcopy failed: %v", err)
 					return
 				}
 
@@ -102,17 +128,17 @@ func TestSystemClipboard(t *testing.T) {
 					{"wl-clipboard", []string{"wl-paste", "--no-newline"}, []string{"wl-copy"}},
 				}
 
+				foundCommand := false
 				for _, cmd := range commands {
-					t.Run(cmd.name, func(t *testing.T) {
-						// Check if command exists
-						if _, err := exec.LookPath(cmd.get[0]); err != nil {
-							t.Skipf("%s not installed", cmd.name)
-							return
-						}
+					if _, err := exec.LookPath(cmd.get[0]); err != nil {
+						continue
+					}
+					foundCommand = true
 
+					t.Run(cmd.name, func(t *testing.T) {
 						err := clipboard.Set(testContent)
 						if err != nil {
-							t.Logf("%s set failed: %v", cmd.name, err)
+							t.Errorf("%s set failed: %v", cmd.name, err)
 							return
 						}
 
@@ -127,6 +153,10 @@ func TestSystemClipboard(t *testing.T) {
 						}
 					})
 				}
+
+				if !foundCommand {
+					t.Skip("no clipboard utility found")
+				}
 			})
 
 		case "windows":
@@ -134,7 +164,7 @@ func TestSystemClipboard(t *testing.T) {
 				// Test clip.exe/powershell Get-Clipboard
 				err := clipboard.Set(testContent)
 				if err != nil {
-					t.Logf("clip.exe failed: %v", err)
+					t.Errorf("clip.exe failed: %v", err)
 					return
 				}
 
@@ -154,6 +184,7 @@ func TestSystemClipboard(t *testing.T) {
 		}
 	})
 
+	// The command execution error tests can still run without clipboard utilities
 	t.Run("command execution errors", func(t *testing.T) {
 		clipboard := &SystemClipboard{}
 
@@ -187,6 +218,11 @@ func TestSystemClipboard(t *testing.T) {
 			}
 		})
 	})
+
+	// Skip clipboard-dependent tests if no utility is available
+	if !hasClipboardUtility() {
+		return
+	}
 
 	t.Run("write command errors", func(t *testing.T) {
 		clipboard := &SystemClipboard{}
