@@ -1,4 +1,4 @@
-# Tide
+# Tide 🌊
 
 <p align="center">
   <img src="./docs/tide-logo.png" alt="Tide Logo" width="200" />
