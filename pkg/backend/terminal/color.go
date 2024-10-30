@@ -253,13 +253,6 @@ func rgbToHsl(r, g, b uint8) (h, s, l float64) {
 }
 
 // Add color optimizer to Terminal struct
-func (t *Terminal) initColorOptimizer() {
-	if t.colorOptimizer == nil {
-		t.colorOptimizer = NewColorOptimizer(t.ColorMode())
-	}
-}
-
 func (t *Terminal) optimizeColor(c core.Color) tcell.Color {
-	t.initColorOptimizer()
 	return t.colorOptimizer.GetColor(c)
 }

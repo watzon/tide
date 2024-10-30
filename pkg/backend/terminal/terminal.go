@@ -7,6 +7,8 @@ package terminal
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 	"unicode"
@@ -127,6 +129,9 @@ func NewWithScreen(screen tcell.Screen, config *Config) (*Terminal, error) {
 	width, height := screen.Size()
 	size := core.Size{Width: width, Height: height}
 
+	term := strings.ToLower(os.Getenv("TERM"))
+	colorTerm := strings.ToLower(os.Getenv("COLORTERM"))
+
 	t := &Terminal{
 		screen:          screen,
 		style:           tcell.StyleDefault,
@@ -139,6 +144,7 @@ func NewWithScreen(screen tcell.Screen, config *Config) (*Terminal, error) {
 		mainBackBuffer:  NewBuffer(size),
 		altFrontBuffer:  NewBuffer(size),
 		altBackBuffer:   NewBuffer(size),
+		colorOptimizer:  NewColorOptimizer(detectColorMode(term, colorTerm)),
 	}
 
 	if config.EnableMouse {
