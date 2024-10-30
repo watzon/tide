@@ -472,6 +472,14 @@ func TestFallbackBehavior(t *testing.T) {
 }
 
 func TestClipboardRace(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping clipboard race test in short mode")
+	}
+
+	if !hasClipboardUtility() {
+		t.Skip("skipping clipboard race test - no clipboard utility available")
+	}
+
 	t.Run("concurrent clipboard operations", func(t *testing.T) {
 		clipboard := &SystemClipboard{}
 		const goroutines = 10
