@@ -119,3 +119,93 @@ func (c *BaseRenderContext) IsInBounds(x, y int) bool {
 	return x >= 0 && x < c.size.Width &&
 		y >= 0 && y < c.size.Height
 }
+
+// MockRenderContext provides a test implementation of RenderContext
+type MockRenderContext struct {
+	*BaseRenderContext
+	DrawCellCalls  []DrawCellCall
+	DrawTextCalls  []DrawTextCall
+	ClearCalled    bool
+	PresentCalled  bool
+	ClipRectPushes []geometry.Rect
+	ClipRectPops   int
+	OffsetPushes   []geometry.Point
+	OffsetPops     int
+}
+
+type DrawCellCall struct {
+	X, Y   int
+	Char   rune
+	Fg, Bg color.Color
+	Style  style.Style
+}
+
+type DrawTextCall struct {
+	Pos   geometry.Point
+	Text  string
+	Style style.Style
+}
+
+func NewMockRenderContext(size geometry.Size) *MockRenderContext {
+	return &MockRenderContext{
+		BaseRenderContext: NewBaseRenderContext(capabilities.Capabilities{
+			ColorMode: capabilities.ColorTrueColor,
+		}, size),
+		DrawCellCalls: make([]DrawCellCall, 0),
+		DrawTextCalls: make([]DrawTextCall, 0),
+	}
+}
+
+func (c *MockRenderContext) Clear() {
+	c.ClearCalled = true
+}
+
+func (c *MockRenderContext) Present() error {
+	c.PresentCalled = true
+	return nil
+}
+
+func (c *MockRenderContext) DrawCell(x, y int, ch rune, fg, bg color.Color) {
+	c.DrawCellCalls = append(c.DrawCellCalls, DrawCellCall{
+		X: x, Y: y,
+		Char: ch,
+		Fg:   fg, Bg: bg,
+	})
+}
+
+func (c *MockRenderContext) DrawStyledCell(x, y int, ch rune, fg, bg color.Color, s style.Style) {
+	c.DrawCellCalls = append(c.DrawCellCalls, DrawCellCall{
+		X: x, Y: y,
+		Char: ch,
+		Fg:   fg, Bg: bg,
+		Style: s,
+	})
+}
+
+func (c *MockRenderContext) DrawText(pos geometry.Point, text string, s style.Style) {
+	c.DrawTextCalls = append(c.DrawTextCalls, DrawTextCall{
+		Pos:   pos,
+		Text:  text,
+		Style: s,
+	})
+}
+
+func (c *MockRenderContext) PushClipRect(rect geometry.Rect) {
+	c.ClipRectPushes = append(c.ClipRectPushes, rect)
+	c.BaseRenderContext.PushClipRect(rect)
+}
+
+func (c *MockRenderContext) PopClipRect() {
+	c.ClipRectPops++
+	c.BaseRenderContext.PopClipRect()
+}
+
+func (c *MockRenderContext) PushOffset(offset geometry.Point) {
+	c.OffsetPushes = append(c.OffsetPushes, offset)
+	c.BaseRenderContext.PushOffset(offset)
+}
+
+func (c *MockRenderContext) PopOffset() {
+	c.OffsetPops++
+	c.BaseRenderContext.PopOffset()
+}

@@ -46,14 +46,34 @@ func NewConstraints(minSize, maxSize geometry.Size) Constraints {
 
 // WithMinSize returns new constraints with the given minimum size
 func (c Constraints) WithMinSize(size geometry.Size) Constraints {
-	c.MinSize = size
-	return c.Normalize()
+	// If new min size is larger than current max size,
+	// both min and max should become the new min size
+	if size.Width > c.MaxSize.Width || size.Height > c.MaxSize.Height {
+		return Constraints{
+			MinSize: size,
+			MaxSize: size,
+		}
+	}
+	return Constraints{
+		MinSize: size,
+		MaxSize: c.MaxSize,
+	}
 }
 
 // WithMaxSize returns new constraints with the given maximum size
 func (c Constraints) WithMaxSize(size geometry.Size) Constraints {
-	c.MaxSize = size
-	return c.Normalize()
+	// If new max size is smaller than current min size,
+	// both min and max should become the new max size
+	if size.Width < c.MinSize.Width || size.Height < c.MinSize.Height {
+		return Constraints{
+			MinSize: size,
+			MaxSize: size,
+		}
+	}
+	return Constraints{
+		MinSize: c.MinSize,
+		MaxSize: size,
+	}
 }
 
 // Normalize ensures constraints are valid

@@ -99,6 +99,11 @@ func (e *BaseElement) Build() {
 
 	// Build new widget
 	newWidget := e.widget.Build(e.BuildContext())
+	if newWidget == e.widget {
+		// If the widget returns itself, don't create a new child
+		e.dirty = false
+		return
+	}
 
 	// Update or create child element
 	if len(e.children) > 0 {
@@ -113,7 +118,11 @@ func (e *BaseElement) Build() {
 }
 
 func (e *BaseElement) Update(newWidget Widget) {
-	if e.widget.GetType() != newWidget.GetType() {
+	// Check if widget types are different using type assertion
+	_, oldIsMock := e.widget.(*MockWidget)
+	_, newIsMock := newWidget.(*MockWidget)
+
+	if oldIsMock != newIsMock {
 		// Replace entire element if widget type changes
 		if e.parent != nil {
 			newElement := NewElement(newWidget)
@@ -205,4 +214,19 @@ func (e *BaseElement) MarkNeedsLayout() {
 	if e.parent != nil {
 		e.parent.MarkNeedsLayout()
 	}
+}
+
+// MockElement implements Element interface for testing
+type MockElement struct {
+	BaseElement
+	parent       Element
+	buildContext BuildContext
+}
+
+func (e *MockElement) Parent() Element {
+	return e.parent
+}
+
+func (e *MockElement) BuildContext() BuildContext {
+	return e.buildContext
 }

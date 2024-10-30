@@ -24,6 +24,11 @@ func Clamp(f, low, high float32) float32 {
 }
 
 func ClampInt(i, low, high int) int {
+	// If bounds are reversed, swap them
+	if low > high {
+		low, high = high, low
+	}
+
 	if i < low {
 		return low
 	}

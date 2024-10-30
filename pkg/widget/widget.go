@@ -93,3 +93,30 @@ func (w *BaseWidget) WithConstraints(constraints Constraints) *BaseWidget {
 	w.constraints = constraints
 	return w
 }
+
+// MockWidget implements Widget interface for testing
+type MockWidget struct {
+	BaseWidget
+	size        geometry.Size
+	constraints Constraints
+	buildResult Widget
+	shouldBuild bool
+}
+
+func (w *MockWidget) GetSize() geometry.Size {
+	return w.size
+}
+
+func (w *MockWidget) GetConstraints() Constraints {
+	return w.constraints
+}
+
+func (w *MockWidget) Build(context BuildContext) Widget {
+	if !w.shouldBuild {
+		return w // Don't build children by default
+	}
+	if w.buildResult != nil {
+		return w.buildResult
+	}
+	return w
+}
