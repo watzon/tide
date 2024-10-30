@@ -143,3 +143,11 @@ func (b *Buffer) CopyFrom(other *Buffer) {
 	b.cursor = other.cursor
 	b.dirty = other.dirty
 }
+
+// Size returns the current size of the buffer
+func (b *Buffer) Size() geometry.Size {
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+
+	return b.size
+}
