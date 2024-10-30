@@ -183,3 +183,100 @@ func TestColorDistance(t *testing.T) {
 		})
 	}
 }
+
+func TestQuantizeTo(t *testing.T) {
+	tests := []struct {
+		name     string
+		color    color.Color
+		mode     color.ColorMode
+		expected color.Color
+	}{
+		{
+			name:     "ColorNone returns empty color",
+			color:    color.Color{R: 255, G: 128, B: 64, A: 255},
+			mode:     color.ColorNone,
+			expected: color.Color{},
+		},
+		{
+			name:     "Color16 black",
+			color:    color.Color{R: 0, G: 0, B: 0, A: 255},
+			mode:     color.Color16,
+			expected: color.Color{R: 0, G: 0, B: 0, A: 255},
+		},
+		{
+			name:     "Color16 blue",
+			color:    color.Color{R: 0, G: 0, B: 255, A: 255},
+			mode:     color.Color16,
+			expected: color.Color{R: 0, G: 0, B: 255, A: 255},
+		},
+		{
+			name:     "Color16 green",
+			color:    color.Color{R: 0, G: 255, B: 0, A: 255},
+			mode:     color.Color16,
+			expected: color.Color{R: 0, G: 255, B: 0, A: 255},
+		},
+		{
+			name:     "Color16 cyan",
+			color:    color.Color{R: 0, G: 255, B: 255, A: 255},
+			mode:     color.Color16,
+			expected: color.Color{R: 0, G: 255, B: 255, A: 255},
+		},
+		{
+			name:     "Color16 red",
+			color:    color.Color{R: 255, G: 0, B: 0, A: 255},
+			mode:     color.Color16,
+			expected: color.Color{R: 255, G: 0, B: 0, A: 255},
+		},
+		{
+			name:     "Color16 magenta",
+			color:    color.Color{R: 255, G: 0, B: 255, A: 255},
+			mode:     color.Color16,
+			expected: color.Color{R: 255, G: 0, B: 255, A: 255},
+		},
+		{
+			name:     "Color16 yellow",
+			color:    color.Color{R: 255, G: 255, B: 0, A: 255},
+			mode:     color.Color16,
+			expected: color.Color{R: 255, G: 255, B: 0, A: 255},
+		},
+		{
+			name:     "Color16 white",
+			color:    color.Color{R: 255, G: 255, B: 255, A: 255},
+			mode:     color.Color16,
+			expected: color.Color{R: 255, G: 255, B: 255, A: 255},
+		},
+		{
+			name:     "Color16 transparent",
+			color:    color.Color{R: 255, G: 255, B: 255, A: 0},
+			mode:     color.Color16,
+			expected: color.Color{},
+		},
+		{
+			name:     "Color256 normal color",
+			color:    color.Color{R: 128, G: 128, B: 128, A: 255},
+			mode:     color.Color256,
+			expected: color.Color{R: 128, G: 128, B: 128, A: 255},
+		},
+		{
+			name:     "Color256 transparent",
+			color:    color.Color{R: 128, G: 128, B: 128, A: 0},
+			mode:     color.Color256,
+			expected: color.Color{},
+		},
+		{
+			name:     "TrueColor returns original",
+			color:    color.Color{R: 123, G: 45, B: 67, A: 255},
+			mode:     color.ColorTrueColor,
+			expected: color.Color{R: 123, G: 45, B: 67, A: 255},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.color.QuantizeTo(tt.mode)
+			if result != tt.expected {
+				t.Errorf("QuantizeTo() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}

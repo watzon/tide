@@ -115,5 +115,61 @@ func TestInterpolation(t *testing.T) {
 				}
 			}
 		})
+
+		t.Run("Single step", func(t *testing.T) {
+			start := color.Color{R: 100, G: 100, B: 100, A: 255}
+			end := color.Color{R: 200, G: 200, B: 200, A: 255}
+			steps := 1
+
+			colors := color.Gradient(start, end, steps)
+
+			if len(colors) != 1 {
+				t.Errorf("expected 1 color, got %d", len(colors))
+			}
+			if colors[0] != start {
+				t.Errorf("expected %v, got %v", start, colors[0])
+			}
+		})
+	})
+
+	t.Run("Mix", func(t *testing.T) {
+		tests := []struct {
+			name   string
+			c1     color.Color
+			c2     color.Color
+			weight float64
+			expect color.Color
+		}{
+			{
+				name:   "Equal mix",
+				c1:     color.Color{R: 0, G: 0, B: 0, A: 255},
+				c2:     color.Color{R: 255, G: 255, B: 255, A: 255},
+				weight: 0.5,
+				expect: color.Color{R: 127, G: 127, B: 127, A: 255},
+			},
+			{
+				name:   "Full first color",
+				c1:     color.Color{R: 100, G: 100, B: 100, A: 255},
+				c2:     color.Color{R: 200, G: 200, B: 200, A: 255},
+				weight: 0.0,
+				expect: color.Color{R: 100, G: 100, B: 100, A: 255},
+			},
+			{
+				name:   "Full second color",
+				c1:     color.Color{R: 100, G: 100, B: 100, A: 255},
+				c2:     color.Color{R: 200, G: 200, B: 200, A: 255},
+				weight: 1.0,
+				expect: color.Color{R: 200, G: 200, B: 200, A: 255},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := color.Mix(tt.c1, tt.c2, tt.weight)
+				if result != tt.expect {
+					t.Errorf("Mix() = %v, want %v", result, tt.expect)
+				}
+			})
+		}
 	})
 }

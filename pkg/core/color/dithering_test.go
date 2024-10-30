@@ -271,4 +271,64 @@ func TestDitherEdgeCases(t *testing.T) {
 				blackCount, whiteCount)
 		}
 	})
+
+	t.Run("Empty matrix fallback", func(t *testing.T) {
+		testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+		palette := []color.Color{
+			{R: 0, G: 0, B: 0, A: 255},
+			{R: 255, G: 255, B: 255, A: 255},
+		}
+
+		// Temporarily set Bayer4x4 to empty matrix
+		originalBayer := color.Bayer4x4
+		color.Bayer4x4 = color.DitherMatrix{}
+		defer func() {
+			color.Bayer4x4 = originalBayer // Restore original matrix
+		}()
+
+		result := testColor.Dither(color.DitherOrdered, 0, 0, palette)
+
+		// Should fall back to nearest color
+		expectedNearest := testColor.Dither(color.DitherNone, 0, 0, palette)
+		if result != expectedNearest {
+			t.Errorf("Empty matrix should fall back to nearest color, got %v, want %v",
+				result, expectedNearest)
+		}
+	})
+
+	t.Run("Floyd-Steinberg nil buffer", func(t *testing.T) {
+		testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+		palette := []color.Color{
+			{R: 0, G: 0, B: 0, A: 255},
+			{R: 255, G: 255, B: 255, A: 255},
+		}
+
+		// Test with nil buffer
+		result := testColor.Dither(color.DitherFloydSteinberg, 0, 0, palette, nil)
+
+		// Should fall back to nearest color
+		expectedNearest := testColor.Dither(color.DitherNone, 0, 0, palette)
+		if result != expectedNearest {
+			t.Errorf("Nil buffer should fall back to nearest color, got %v, want %v",
+				result, expectedNearest)
+		}
+	})
+
+	t.Run("Empty palette for all methods", func(t *testing.T) {
+		testColor := color.Color{R: 128, G: 128, B: 128, A: 255}
+		methods := []color.DitherMethod{
+			color.DitherNone,
+			color.DitherFloydSteinberg,
+			color.DitherOrdered,
+			color.DitherBayer,
+		}
+
+		for _, method := range methods {
+			result := testColor.Dither(method, 0, 0, []color.Color{})
+			if result != testColor {
+				t.Errorf("Method %v with empty palette should return original color, got %v, want %v",
+					method, result, testColor)
+			}
+		}
+	})
 }

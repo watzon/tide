@@ -169,4 +169,49 @@ func TestColorProfiles(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("Profile getters", func(t *testing.T) {
+		tests := []struct {
+			name        string
+			profile     color.Profile
+			expectSpace color.ColorSpace
+			expectWhite [3]float64
+		}{
+			{
+				name:        "Default profile",
+				profile:     color.DefaultProfile,
+				expectSpace: color.ColorSpaceSRGB,
+				expectWhite: [3]float64{0.9505, 1.0, 1.0890},
+			},
+			{
+				name:        "Linear profile",
+				profile:     color.LinearProfile,
+				expectSpace: color.ColorSpaceLinearRGB,
+				expectWhite: [3]float64{0.9505, 1.0, 1.0890},
+			},
+			{
+				name:        "Display P3 profile",
+				profile:     color.DisplayP3Profile,
+				expectSpace: color.ColorSpaceDisplayP3,
+				expectWhite: [3]float64{0.9505, 1.0, 1.0890},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				// Test Space() method
+				if space := tt.profile.Space(); space != tt.expectSpace {
+					t.Errorf("Space() = %v, want %v", space, tt.expectSpace)
+				}
+
+				// Test WhitePoint() method
+				whitePoint := tt.profile.WhitePoint()
+				for i, v := range whitePoint {
+					if v != tt.expectWhite[i] {
+						t.Errorf("WhitePoint()[%d] = %v, want %v", i, v, tt.expectWhite[i])
+					}
+				}
+			})
+		}
+	})
 }

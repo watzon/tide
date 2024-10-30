@@ -88,7 +88,11 @@ func (c Color) Dither(method DitherMethod, x, y int, palette []Color, buffer ...
 		}
 		return c.floydSteinbergDither(x, y, palette, b)
 	case DitherOrdered:
-		return c.orderedDither(x, y, palette, Bayer4x4)
+		matrix := Bayer4x4
+		if len(matrix) == 0 {
+			return c.nearestColor(palette)
+		}
+		return c.orderedDither(x, y, palette, matrix)
 	case DitherBayer:
 		return c.bayerDither(x, y, palette)
 	default:
@@ -101,6 +105,7 @@ func (c Color) nearestColor(palette []Color) Color {
 	if len(palette) == 0 {
 		return c // Return original color for empty palette
 	}
+
 	if len(palette) == 1 {
 		return palette[0] // Return the only color for single-color palette
 	}
