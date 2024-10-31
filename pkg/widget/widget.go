@@ -120,3 +120,30 @@ func (w *MockWidget) Build(context BuildContext) Widget {
 	}
 	return w
 }
+
+// StatefulWidget is a widget that has mutable state
+type StatefulWidget interface {
+	Widget
+	CreateState() State
+}
+
+// State represents the mutable state of a StatefulWidget
+type State interface {
+	// Lifecycle
+	InitState()
+	Dispose()
+
+	// Build method to create the widget tree
+	Build(BuildContext) Widget
+
+	// Internal methods
+	Widget() StatefulWidget
+	Element() StatefulElement
+	Context() BuildContext
+
+	// State management
+	SetState(func())
+
+	// Internal use
+	MountState(StatefulElement)
+}

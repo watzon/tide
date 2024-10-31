@@ -157,10 +157,49 @@ type BaseRenderBox struct {
 	BaseRenderObject
 }
 
-func (r *BaseRenderBox) Paint(context engine.RenderContext) {
-	r.PaintBackground(context)
-	r.PaintBorder(context)
-	r.PaintContent(context)
+// Layout implements the box model layout algorithm
+func (r *BaseRenderBox) Layout(constraints Constraints) geometry.Size {
+	// 1. Calculate available content space by subtracting padding and border
+	horizontalInsets := r.style.Padding.Left + r.style.Padding.Right +
+		r.style.BorderWidth.Left + r.style.BorderWidth.Right
+	verticalInsets := r.style.Padding.Top + r.style.Padding.Bottom +
+		r.style.BorderWidth.Top + r.style.BorderWidth.Bottom
+
+	// 2. Create content constraints
+	contentConstraints := Constraints{
+		MinSize: geometry.Size{
+			Width:  max(0, constraints.MinSize.Width-horizontalInsets),
+			Height: max(0, constraints.MinSize.Height-verticalInsets),
+		},
+		MaxSize: geometry.Size{
+			Width:  max(0, constraints.MaxSize.Width-horizontalInsets),
+			Height: max(0, constraints.MaxSize.Height-verticalInsets),
+		},
+	}
+
+	// 3. Layout children within content constraints
+	contentSize := r.layoutChildren(contentConstraints)
+
+	// 4. Calculate final size including padding and border
+	r.size = geometry.Size{
+		Width:  contentSize.Width + horizontalInsets,
+		Height: contentSize.Height + verticalInsets,
+	}
+
+	// 5. Ensure size satisfies original constraints
+	r.size = constraints.Constrain(r.size)
+	return r.size
+}
+
+func (r *BaseRenderBox) layoutChildren(constraints Constraints) geometry.Size {
+	if len(r.children) == 0 {
+		return constraints.MinSize
+	}
+
+	// For now, just layout the first child with full constraints
+	// This will be expanded when we add different layout behaviors (row, column, etc.)
+	child := r.children[0]
+	return child.Layout(constraints)
 }
 
 func (r *BaseRenderBox) PaintBackground(context engine.RenderContext) {
@@ -170,14 +209,11 @@ func (r *BaseRenderBox) PaintBackground(context engine.RenderContext) {
 }
 
 func (r *BaseRenderBox) PaintBorder(context engine.RenderContext) {
-	// Implementation depends on border style
-	// Will be implemented when we add border styles
-}
-
-func (r *BaseRenderBox) PaintContent(context engine.RenderContext) {
-	for _, child := range r.children {
-		child.Paint(context)
+	if r.style.BorderWidth.IsZero() {
+		return
 	}
+	// Let the backend handle the border painting
+	context.PaintBorder(r.BorderRect(), r.style.Style)
 }
 
 func (r *BaseRenderBox) ContentRect() geometry.Rect {
@@ -222,4 +258,17 @@ func (r *BaseRenderBox) MarginRect() geometry.Rect {
 			Y: border.Max.Y + insets.Bottom,
 		},
 	}
+}
+
+// NewBaseRenderBox creates a new BaseRenderBox with default style
+func NewBaseRenderBox() *BaseRenderBox {
+	return &BaseRenderBox{
+		BaseRenderObject: BaseRenderObject{
+			style: NewWidgetStyle(),
+		},
+	}
+}
+
+func (r *BaseRenderBox) WithStyle(style WidgetStyle) {
+	r.style = style
 }

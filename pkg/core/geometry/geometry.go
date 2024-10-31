@@ -30,3 +30,7 @@ func (r Rect) Contains(p Point) bool {
 	return p.X >= r.Min.X && p.X < r.Max.X &&
 		p.Y >= r.Min.Y && p.Y < r.Max.Y
 }
+
+func (r Rect) IsEmpty() bool {
+	return r.Min.X >= r.Max.X || r.Min.Y >= r.Max.Y
+}

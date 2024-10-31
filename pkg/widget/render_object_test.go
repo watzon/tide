@@ -292,3 +292,85 @@ func TestBaseRenderBox_PaintWithChildren(t *testing.T) {
 	assert.True(t, child1.painted, "First child should have been painted")
 	assert.True(t, child2.painted, "Second child should have been painted")
 }
+
+func TestBaseRenderBox_Layout(t *testing.T) {
+	style := WidgetStyle{
+		Padding: EdgeInsets{
+			Left: 5, Right: 5,
+			Top: 10, Bottom: 10,
+		},
+		BorderWidth: EdgeInsets{
+			Left: 1, Right: 1,
+			Top: 1, Bottom: 1,
+		},
+	}
+	box := &BaseRenderBox{
+		BaseRenderObject: BaseRenderObject{
+			style: style,
+		},
+	}
+
+	// Test with no children
+	constraints := NewConstraints(
+		geometry.Size{Width: 50, Height: 50},
+		geometry.Size{Width: 100, Height: 100},
+	)
+	size := box.Layout(constraints)
+
+	// Total horizontal insets = padding (10) + border (2) = 12
+	// Total vertical insets = padding (20) + border (2) = 22
+	expectedSize := geometry.Size{
+		Width:  50, // Min width
+		Height: 50, // Min height
+	}
+	assert.Equal(t, expectedSize, size)
+
+	// Test with child
+	child := NewMockChildRenderObject()
+	box.AppendChild(child)
+	size = box.Layout(constraints)
+
+	// Child should receive constraints minus insets
+	expectedChildConstraints := NewConstraints(
+		geometry.Size{
+			Width:  38, // 50 - 12
+			Height: 28, // 50 - 22
+		},
+		geometry.Size{
+			Width:  88, // 100 - 12
+			Height: 78, // 100 - 22
+		},
+	)
+	assert.Equal(t, expectedChildConstraints, child.Constraints())
+
+	// Final size should include insets
+	expectedFinalSize := geometry.Size{
+		Width:  50, // child min width (38) + insets (12)
+		Height: 50, // child min height (28) + insets (22)
+	}
+	assert.Equal(t, expectedFinalSize, size)
+}
+
+func TestBaseRenderBox_LayoutWithMultipleChildren(t *testing.T) {
+	box := &BaseRenderBox{
+		BaseRenderObject: BaseRenderObject{
+			style: WidgetStyle{},
+		},
+	}
+
+	// Add multiple children
+	child1 := NewMockChildRenderObject()
+	child2 := NewMockChildRenderObject()
+	box.AppendChild(child1)
+	box.AppendChild(child2)
+
+	constraints := NewConstraints(
+		geometry.Size{Width: 50, Height: 50},
+		geometry.Size{Width: 100, Height: 100},
+	)
+	size := box.Layout(constraints)
+
+	// Currently, only first child affects layout
+	assert.Equal(t, constraints.MinSize, size)
+	assert.Equal(t, constraints, child1.Constraints())
+}

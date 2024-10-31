@@ -18,6 +18,7 @@ import (
 	"github.com/watzon/tide/internal/utils"
 	"github.com/watzon/tide/pkg/core/color"
 	"github.com/watzon/tide/pkg/core/geometry"
+	"github.com/watzon/tide/pkg/core/style"
 )
 
 // StyleMask represents different text style attributes
@@ -680,4 +681,24 @@ func (t *Terminal) ExitAltScreen() error {
 		t.Present() // Return to main screen content
 	}
 	return nil
+}
+
+func (t *Terminal) DrawBorder(rect geometry.Rect, s style.Style) {
+	// Draw corners
+	t.DrawStyledCell(rect.Min.X, rect.Min.Y, '┌', s.ForegroundColor, s.BackgroundColor, StyleMask(0))
+	t.DrawStyledCell(rect.Max.X-1, rect.Min.Y, '┐', s.ForegroundColor, s.BackgroundColor, StyleMask(0))
+	t.DrawStyledCell(rect.Min.X, rect.Max.Y-1, '└', s.ForegroundColor, s.BackgroundColor, StyleMask(0))
+	t.DrawStyledCell(rect.Max.X-1, rect.Max.Y-1, '┘', s.ForegroundColor, s.BackgroundColor, StyleMask(0))
+
+	// Draw horizontal borders
+	for x := rect.Min.X + 1; x < rect.Max.X-1; x++ {
+		t.DrawStyledCell(x, rect.Min.Y, '─', s.ForegroundColor, s.BackgroundColor, StyleMask(0))
+		t.DrawStyledCell(x, rect.Max.Y-1, '─', s.ForegroundColor, s.BackgroundColor, StyleMask(0))
+	}
+
+	// Draw vertical borders
+	for y := rect.Min.Y + 1; y < rect.Max.Y-1; y++ {
+		t.DrawStyledCell(rect.Min.X, y, '│', s.ForegroundColor, s.BackgroundColor, StyleMask(0))
+		t.DrawStyledCell(rect.Max.X-1, y, '│', s.ForegroundColor, s.BackgroundColor, StyleMask(0))
+	}
 }

@@ -33,16 +33,16 @@
   - ✅ Clipboard integration
   - ✅ Alternative screen buffer
   - ✅ Window title manipulation
+  - ✅ Double buffering
 
 ### Phase 2: Widget System (v0.2.0)
 - Widget System Core
   - ✅ Widget lifecycle management
-  - [ ] Layout system (Box model)
+  - ✅ Layout system (Box model)
   - [ ] State management
   - [ ] Event propagation
   - [ ] Focus management
   - [ ] Dirty rectangle tracking
-  - [ ] Double buffering
   - [ ] Batch updates
 
 ### Phase 3: Basic Widgets (v0.3.0)

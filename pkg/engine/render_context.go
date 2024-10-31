@@ -26,6 +26,9 @@ type RenderContext interface {
 	// Text operations
 	DrawText(pos geometry.Point, text string, style style.Style)
 
+	// Box model operations
+	PaintBorder(rect geometry.Rect, style style.Style)
+
 	// Clipping
 	PushClipRect(rect geometry.Rect)
 	PopClipRect()
@@ -123,14 +126,15 @@ func (c *BaseRenderContext) IsInBounds(x, y int) bool {
 // MockRenderContext provides a test implementation of RenderContext
 type MockRenderContext struct {
 	*BaseRenderContext
-	DrawCellCalls  []DrawCellCall
-	DrawTextCalls  []DrawTextCall
-	ClearCalled    bool
-	PresentCalled  bool
-	ClipRectPushes []geometry.Rect
-	ClipRectPops   int
-	OffsetPushes   []geometry.Point
-	OffsetPops     int
+	DrawCellCalls    []DrawCellCall
+	DrawTextCalls    []DrawTextCall
+	PaintBorderCalls []PaintBorderCall
+	ClearCalled      bool
+	PresentCalled    bool
+	ClipRectPushes   []geometry.Rect
+	ClipRectPops     int
+	OffsetPushes     []geometry.Point
+	OffsetPops       int
 }
 
 type DrawCellCall struct {
@@ -143,6 +147,11 @@ type DrawCellCall struct {
 type DrawTextCall struct {
 	Pos   geometry.Point
 	Text  string
+	Style style.Style
+}
+
+type PaintBorderCall struct {
+	Rect  geometry.Rect
 	Style style.Style
 }
 
@@ -186,6 +195,13 @@ func (c *MockRenderContext) DrawText(pos geometry.Point, text string, s style.St
 	c.DrawTextCalls = append(c.DrawTextCalls, DrawTextCall{
 		Pos:   pos,
 		Text:  text,
+		Style: s,
+	})
+}
+
+func (c *MockRenderContext) PaintBorder(rect geometry.Rect, s style.Style) {
+	c.PaintBorderCalls = append(c.PaintBorderCalls, PaintBorderCall{
+		Rect:  rect,
 		Style: s,
 	})
 }

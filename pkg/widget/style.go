@@ -51,7 +51,22 @@ func NewWidgetStyle() WidgetStyle {
 	}
 }
 
-// Style modification methods (fluent interface)
+// Fluent interface methods for WidgetStyle
+func (s WidgetStyle) WithBorderWidth(b EdgeInsets) WidgetStyle {
+	s.BorderWidth = b
+	return s
+}
+
+func (s WidgetStyle) WithBorderStyle(bs BorderStyle) WidgetStyle {
+	s.BorderStyle = bs
+	return s
+}
+
+func (s WidgetStyle) WithBorderColor(c color.Color) WidgetStyle {
+	s.BorderColor = c
+	return s
+}
+
 func (s WidgetStyle) WithForeground(c color.Color) WidgetStyle {
 	s.ForegroundColor = c
 	return s

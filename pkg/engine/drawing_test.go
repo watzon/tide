@@ -57,6 +57,8 @@ func (m *mockRenderContext) DrawStyledCell(x, y int, ch rune, fg, bg color.Color
 
 func (m *mockRenderContext) DrawText(pos geometry.Point, text string, s style.Style) {}
 
+func (m *mockRenderContext) PaintBorder(rect geometry.Rect, s style.Style) {}
+
 func TestFillRect(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -173,17 +173,14 @@ func (e *BaseElement) ReplaceChild(old, new Element) {
 
 // NewElement creates the appropriate element type for a widget
 func NewElement(widget Widget) Element {
-	// switch w := widget.(type) {
-	// case StatefulWidget:
-	// 	return NewStatefulElement(w)
-	// case StatelessWidget:
-	// 	return NewStatelessElement(w)
-	// default:
-	// 	// For basic widgets that just implement Widget interface
-	elem := &BaseElement{}
-	elem.widget = widget
-	return elem
-	// }
+	switch w := widget.(type) {
+	case StatefulWidget:
+		return NewStatefulElement(w)
+	default:
+		elem := &BaseElement{}
+		elem.widget = widget
+		return elem
+	}
 }
 
 func (e *BaseElement) LayoutPhase() {
@@ -229,4 +226,92 @@ func (e *MockElement) Parent() Element {
 
 func (e *MockElement) BuildContext() BuildContext {
 	return e.buildContext
+}
+
+// StatefulElement manages the lifecycle of a StatefulWidget
+type StatefulElement interface {
+	Element
+	State() State
+}
+
+// baseStatefulElement provides the implementation of StatefulElement
+type baseStatefulElement struct {
+	BaseElement
+	state State
+}
+
+func NewStatefulElement(widget StatefulWidget) StatefulElement {
+	elem := &baseStatefulElement{}
+	elem.widget = widget
+	elem.state = widget.CreateState()
+	return elem
+}
+
+func (e *baseStatefulElement) State() State {
+	return e.state
+}
+
+func (e *baseStatefulElement) Mount(parent Element) {
+	if e.mounted {
+		return
+	}
+
+	e.parent = parent
+	e.mounted = true
+
+	// Create render object
+	e.renderObject = e.widget.CreateRenderObject()
+
+	// Initialize state
+	e.state.MountState(e)
+
+	// Initial build
+	e.Build()
+}
+
+func (e *baseStatefulElement) Unmount() {
+	if !e.mounted {
+		return
+	}
+
+	// Dispose state
+	e.state.Dispose()
+
+	// Unmount children
+	for _, child := range e.children {
+		child.Unmount()
+	}
+
+	e.mounted = false
+	e.parent = nil
+	e.children = nil
+	e.renderObject = nil
+	e.state = nil
+}
+
+func (e *baseStatefulElement) Build() {
+	if !e.mounted {
+		return
+	}
+
+	// Build using state
+	newWidget := e.state.Build(e.BuildContext())
+
+	// Update or create child element
+	if len(e.children) > 0 {
+		e.children[0].Update(newWidget)
+	} else {
+		child := NewElement(newWidget)
+		e.children = append(e.children, child)
+		child.Mount(e)
+	}
+
+	e.dirty = false
+}
+
+func (e *baseStatefulElement) Update(newWidget Widget) {
+	// Update widget reference
+	e.widget = newWidget.(StatefulWidget)
+	e.widget.UpdateRenderObject(e.renderObject)
+	e.MarkNeedsBuild()
 }
