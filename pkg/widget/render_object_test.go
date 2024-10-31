@@ -25,7 +25,8 @@ type Cell struct {
 // MockRenderContext implements engine.RenderContext for testing
 type MockRenderContext struct {
 	engine.RenderContext
-	cells map[geometry.Point]Cell
+	cells  map[geometry.Point]Cell
+	offset geometry.Point // Add offset tracking
 }
 
 func NewMockRenderContext() *MockRenderContext {
@@ -35,11 +36,29 @@ func NewMockRenderContext() *MockRenderContext {
 }
 
 func (m *MockRenderContext) DrawCell(x, y int, ch rune, fg, bg color.Color) {
-	m.cells[geometry.Point{X: x, Y: y}] = Cell{
+	m.cells[geometry.Point{
+		X: x + m.offset.X,
+		Y: y + m.offset.Y,
+	}] = Cell{
 		Rune: ch,
 		Fg:   fg,
 		Bg:   bg,
 	}
+}
+
+func (m *MockRenderContext) PushOffset(offset geometry.Point) {
+	m.offset = geometry.Point{
+		X: m.offset.X + offset.X,
+		Y: m.offset.Y + offset.Y,
+	}
+}
+
+func (m *MockRenderContext) PopOffset() {
+	m.offset = geometry.Point{X: 0, Y: 0}
+}
+
+func (m *MockRenderContext) PaintBorder(rect geometry.Rect, style style.Style) {
+	// No-op for now, or implement basic border painting if needed for tests
 }
 
 // MockChildRenderObject implements RenderObject for testing child paint calls
